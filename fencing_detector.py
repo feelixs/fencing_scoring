@@ -44,6 +44,8 @@ def process_vsm_data(device):
     # Track the last state to only report changes
     last_state = None
     start_time = datetime.now()
+    last_change_time = None
+    debounce_time = 0.3  # 300ms debounce time
     
     try:
         print("Monitoring fencing hits. Press Ctrl+C to stop.")
@@ -55,20 +57,26 @@ def process_vsm_data(device):
             
             if data:
                 state = detect_hit_state(data)
+                current_time = datetime.now()
                 
-                # Only print when state changes
+                # Check if state is different and we're outside the debounce period
                 if state != last_state:
-                    timestamp = datetime.now()
-                    elapsed = (timestamp - start_time).total_seconds()
-                    
-                    # Print hit information
-                    print(f"[{elapsed:.2f}s] {state}")
-                    
-                    # If it's a scoring hit, highlight it
-                    if state in ["LEFT_GOT_HIT", "RIGHT_GOT_HIT"]:
-                        print(f"*** SCORE: {state} ***")
+                    # If this is the first change or we're past the debounce window
+                    if (last_change_time is None or 
+                        (current_time - last_change_time).total_seconds() > debounce_time):
                         
-                    last_state = state
+                        elapsed = (current_time - start_time).total_seconds()
+                        
+                        # Print hit information
+                        print(f"[{elapsed:.2f}s] {state}")
+                        
+                        # If it's a scoring hit, highlight it
+                        if state in ["LEFT_GOT_HIT", "RIGHT_GOT_HIT"]:
+                            print(f"*** SCORE: {state} ***")
+                        
+                        # Update state tracking
+                        last_state = state
+                        last_change_time = current_time
                     
             # Small delay to prevent hogging CPU
             time.sleep(0.01)
