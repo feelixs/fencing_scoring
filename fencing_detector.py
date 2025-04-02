@@ -64,10 +64,10 @@ def process_vsm_data(device, output_queue, stop_event):
     try:
         while not stop_event.is_set():
             # Read data from the device (with a short timeout to allow checking stop_event)
-            data = device.read(42, timeout_ms=100) # Reduced timeout
+            data = device.read(42, timeout_ms=100)  # Reduced timeout
 
-            if stop_event.is_set(): # Check again after potential blocking read
-                 break
+            if stop_event.is_set():  # Check again after potential blocking read
+                break
 
             if data:
                 current_time = datetime.now()
@@ -101,19 +101,19 @@ def process_vsm_data(device, output_queue, stop_event):
 def update_gui(root, label, output_queue):
     """ Checks the queue for messages and updates the GUI label. """
     try:
-        while True: # Process all messages currently in queue
+        while True:  # Process all messages currently in queue
             message = output_queue.get_nowait()
             # Keep only the last few lines (e.g., 5 lines) for display
             current_lines = label.cget("text").split('\n')
             max_lines = 5
             new_lines = (current_lines + [message])[-max_lines:]
             label.config(text="\n".join(new_lines))
-            root.update_idletasks() # Update GUI immediately
+            root.update_idletasks()  # Update GUI immediately
     except queue.Empty:
-        pass # No messages currently
+        pass  # No messages currently
 
     # Schedule the next check
-    root.after(100, update_gui, root, label, output_queue) # Check every 100ms
+    root.after(100, update_gui, root, label, output_queue)  # Check every 100ms
 
 
 def start_device_thread(output_queue, stop_event):
@@ -134,7 +134,7 @@ def start_device_thread(output_queue, stop_event):
 def main():
     root = tk.Tk()
     root.title("Fencing Hit Detector")
-    root.geometry("400x200") # Initial size
+    root.geometry("400x200")  # Initial size
 
     # Configure font
     display_font = tkFont.Font(family="Helvetica", size=16)
@@ -145,7 +145,7 @@ def main():
         text="Initializing...",
         font=display_font,
         justify=tk.CENTER,
-        anchor=tk.CENTER # Center text within the label
+        anchor=tk.CENTER  # Center text within the label
     )
     # Make label expand to fill window and center content
     status_label.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
@@ -162,9 +162,9 @@ def main():
     # Function to handle window closing
     def on_closing():
         print("Closing application...")
-        stop_event.set() # Signal the thread to stop
+        stop_event.set()  # Signal the thread to stop
         if device_thread:
-             device_thread.join(timeout=1.0) # Wait briefly for thread cleanup
+            device_thread.join(timeout=1.0)  # Wait briefly for thread cleanup
         root.destroy()
 
     root.protocol("WM_DELETE_WINDOW", on_closing)
