@@ -231,10 +231,11 @@ def main():
 
     # Configure styles for progress bars
     style = ttk.Style(root)
-    # Define colors for different health levels
-    style.configure("Green.Vertical.TProgressbar", background='green')
-    style.configure("Yellow.Vertical.TProgressbar", background='yellow')
-    style.configure("Red.Vertical.TProgressbar", background='red')
+    # Define colors and thickness for different health levels
+    bar_thickness = 80 # Adjust this value to change the width
+    style.configure("Green.Vertical.TProgressbar", background='green', thickness=bar_thickness)
+    style.configure("Yellow.Vertical.TProgressbar", background='yellow', thickness=bar_thickness)
+    style.configure("Red.Vertical.TProgressbar", background='red', thickness=bar_thickness)
 
     # Configure fonts
     label_font = tkFont.Font(family="Helvetica", size=18) # Increased font size
