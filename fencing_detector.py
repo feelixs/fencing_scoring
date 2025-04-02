@@ -2,6 +2,7 @@ import hid
 from datetime import datetime
 import time
 
+
 def find_vsm_device():
     # Vendor ID and Product ID for the VSM device
     vendor_id = 0x04bc
@@ -18,6 +19,7 @@ def find_vsm_device():
         print(f"Error opening device: {e}")
         print("Is the device connected and do you have the right permissions?")
         return None
+
 
 def detect_hit_state(data):
     # Skip the first 2 bytes (counter and report ID)
@@ -39,6 +41,7 @@ def detect_hit_state(data):
     }
     
     return hit_states.get(signature, "UNKNOWN")
+
 
 def process_vsm_data(device):
     # Track the last reported state and the time it was reported
@@ -86,6 +89,7 @@ def process_vsm_data(device):
         if device:
             device.close()
 
+
 def main():
     # Find and open the device
     vsm_device = find_vsm_device()
@@ -93,6 +97,7 @@ def main():
         process_vsm_data(vsm_device)
     else:
         print("Could not find VSM device. Check connection and permissions.")
+
 
 if __name__ == "__main__":
     main()
