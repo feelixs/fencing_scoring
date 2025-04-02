@@ -66,10 +66,14 @@ def process_vsm_data(device, output_queue, stop_event):
     left_hp = LEFT_HP
     right_hp = RIGHT_HP
 
+    left_hp = LEFT_HP
+    right_hp = RIGHT_HP
+
     last_reported_state = None
     time_last_reported = None
     debounce_time = 0.3  # 300ms debounce time (cooldown period)
     start_time = datetime.now()
+    last_loop_time = start_time # Track time for delta calculation
 
     # Initial status and health update
     output_queue.put({'type': 'status', 'message': "Monitoring fencing hits..."})
@@ -78,6 +82,10 @@ def process_vsm_data(device, output_queue, stop_event):
 
     try:
         while not stop_event.is_set():
+            current_time = datetime.now()
+            time_delta = current_time - last_loop_time
+            hp_changed = False
+
             # Read data from the device (with a short timeout to allow checking stop_event)
             data = device.read(42, timeout_ms=100)  # Reduced timeout
 
@@ -85,9 +93,22 @@ def process_vsm_data(device, output_queue, stop_event):
                 break
 
             if data:
-                current_time = datetime.now()
                 current_state = detect_hit_state(data)
 
+                # --- Continuous Damage Calculation (Opponent Hits) ---
+                if current_state == "LEFT_GOT_HIT":
+                    damage_increment = time_delta.total_seconds() * 1000 * GLOBAL_HIT_DMG_PER_MILLISECOND
+                    if right_hp > 0:
+                        right_hp = max(0, right_hp - damage_increment)
+                        hp_changed = True
+
+                elif current_state == "RIGHT_GOT_HIT":
+                    damage_increment = time_delta.total_seconds() * 1000 * GLOBAL_HIT_DMG_PER_MILLISECOND
+                    if left_hp > 0:
+                        left_hp = max(0, left_hp - damage_increment)
+                        hp_changed = True
+
+                # --- State Change Reporting & One-Time Damage (Self-Hits) ---
                 if current_state != last_reported_state:
                     if time_last_reported is None or \
                        (current_time - time_last_reported).total_seconds() > debounce_time:
@@ -96,32 +117,34 @@ def process_vsm_data(device, output_queue, stop_event):
                         status_message = f"[{elapsed:.2f}s] {current_state}"
                         output_queue.put({'type': 'status', 'message': status_message})
 
-                        # Calculate HP changes
-                        hp_changed = False
+                        # Apply one-time damage ONLY for self-hits now
                         if current_state == "LEFT_GOT_HIT":
-                            right_hp = max(0, right_hp - GLOBAL_HIT_DMG)
-                            hp_changed = True
+                            # Report score, damage is continuous
                             output_queue.put({'type': 'status', 'message': f"*** SCORE: {current_state} ***"})
                         elif current_state == "RIGHT_GOT_HIT":
-                            left_hp = max(0, left_hp - GLOBAL_HIT_DMG)
-                            hp_changed = True
+                            # Report score, damage is continuous
                             output_queue.put({'type': 'status', 'message': f"*** SCORE: {current_state} ***"})
                         elif current_state == "LEFT_HIT_SELF":
-                            left_hp = max(0, left_hp - GLOBAL_HIT_DMG_SELF)
-                            hp_changed = True
+                            if left_hp > 0:
+                                left_hp = max(0, left_hp - GLOBAL_HIT_DMG_SELF)
+                                hp_changed = True # Mark HP changed for update below
                         elif current_state == "RIGHT_SELF_HIT":
-                            right_hp = max(0, right_hp - GLOBAL_HIT_DMG_SELF)
-                            hp_changed = True
+                            if right_hp > 0:
+                                right_hp = max(0, right_hp - GLOBAL_HIT_DMG_SELF)
+                                hp_changed = True # Mark HP changed for update below
 
-                        # Send health update if changed
-                        if hp_changed:
-                            output_queue.put({'type': 'health', 'left': left_hp, 'right': right_hp})
-
+                        # Update reported state *after* handling the change
                         last_reported_state = current_state
                         time_last_reported = current_time
 
+            # --- Send HP Update if it Changed this Iteration ---
+            if hp_changed:
+                output_queue.put({'type': 'health', 'left': left_hp, 'right': right_hp})
+
+            # Update last loop time for next iteration's delta calculation
+            last_loop_time = current_time
+
             # No need for time.sleep(0.01) as device.read timeout provides delay
-            # If read is non-blocking or very fast, a small sleep might be needed again
 
     except Exception as e:
         output_queue.put({'type': 'status', 'message': f"Error in device loop: {e}"})
