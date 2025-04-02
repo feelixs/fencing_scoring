@@ -200,10 +200,12 @@ def update_gui(root, status_label, left_hp_bar, right_hp_bar, output_queue):
 def get_hp_color_style(current_hp, max_hp):
     """ Returns the ttk style name based on HP percentage. """
     percentage = (current_hp / max_hp) * 100
-    if percentage > 60:
+    if percentage > 75:
         return "Green.Vertical.TProgressbar"
-    elif percentage > 25:
+    elif percentage > 50:
         return "Yellow.Vertical.TProgressbar"
+    elif percentage > 25:
+        return "Orange.Vertical.TProgressbar"
     else:
         return "Red.Vertical.TProgressbar"
 
@@ -232,10 +234,39 @@ def main():
     # Configure styles for progress bars
     style = ttk.Style(root)
     # Define colors and thickness for different health levels
-    bar_thickness = 80 # Adjust this value to change the width
-    style.configure("Green.Vertical.TProgressbar", background='green', thickness=bar_thickness)
-    style.configure("Yellow.Vertical.TProgressbar", background='yellow', thickness=bar_thickness)
-    style.configure("Red.Vertical.TProgressbar", background='red', thickness=bar_thickness)
+    bar_thickness = 120 # Increased thickness for wider bars
+    
+    # Fix the ttk styles - this is crucial for proper coloring
+    style.layout("Green.Vertical.TProgressbar",
+                 [('Vertical.Progressbar.trough',
+                   {'children': [('Vertical.Progressbar.pbar',
+                                  {'side': 'bottom', 'sticky': 'ns'})],
+                    'sticky': 'nswe'})])
+    style.layout("Yellow.Vertical.TProgressbar",
+                 [('Vertical.Progressbar.trough',
+                   {'children': [('Vertical.Progressbar.pbar',
+                                  {'side': 'bottom', 'sticky': 'ns'})],
+                    'sticky': 'nswe'})])
+    style.layout("Orange.Vertical.TProgressbar",
+                 [('Vertical.Progressbar.trough',
+                   {'children': [('Vertical.Progressbar.pbar',
+                                  {'side': 'bottom', 'sticky': 'ns'})],
+                    'sticky': 'nswe'})])
+    style.layout("Red.Vertical.TProgressbar",
+                 [('Vertical.Progressbar.trough',
+                   {'children': [('Vertical.Progressbar.pbar',
+                                  {'side': 'bottom', 'sticky': 'ns'})],
+                    'sticky': 'nswe'})])
+    
+    # Configure the colors and thickness
+    style.configure("Green.Vertical.TProgressbar", troughcolor='lightgray', 
+                   background='green', thickness=bar_thickness)
+    style.configure("Yellow.Vertical.TProgressbar", troughcolor='lightgray', 
+                   background='yellow', thickness=bar_thickness)
+    style.configure("Orange.Vertical.TProgressbar", troughcolor='lightgray', 
+                   background='orange', thickness=bar_thickness)
+    style.configure("Red.Vertical.TProgressbar", troughcolor='lightgray', 
+                   background='red', thickness=bar_thickness)
 
     # Configure fonts
     label_font = tkFont.Font(family="Helvetica", size=18) # Increased font size
