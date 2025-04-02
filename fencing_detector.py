@@ -1,6 +1,5 @@
 import hid
 from datetime import datetime
-import time
 import tkinter as tk
 from tkinter import ttk, font as tkFont
 import threading
@@ -10,7 +9,7 @@ import queue
 GLOBAL_HIT_DMG = 80
 GLOBAL_HIT_DMG_SELF = GLOBAL_HIT_DMG
 
-GLOBAL_HIT_DMG_PER_MILLISECOND = 1
+GLOBAL_HIT_DMG_PER_MILLISECOND = 0.1
 
 RIGHT_HP = 250
 LEFT_HP = 250
@@ -117,12 +116,18 @@ def process_vsm_data(device, output_queue, stop_event):
                         status_message = f"[{elapsed:.2f}s] {current_state}"
                         output_queue.put({'type': 'status', 'message': status_message})
 
-                        # Apply one-time damage ONLY for self-hits now
+                        # Apply one-time damage for initial hits and self-hits
                         if current_state == "LEFT_GOT_HIT":
-                            # Report score, damage is continuous
+                            # Apply initial hit damage plus report score
+                            if right_hp > 0:
+                                right_hp = max(0, right_hp - GLOBAL_HIT_DMG)
+                                hp_changed = True
                             output_queue.put({'type': 'status', 'message': f"*** SCORE: {current_state} ***"})
                         elif current_state == "RIGHT_GOT_HIT":
-                            # Report score, damage is continuous
+                            # Apply initial hit damage plus report score
+                            if left_hp > 0:
+                                left_hp = max(0, left_hp - GLOBAL_HIT_DMG)
+                                hp_changed = True
                             output_queue.put({'type': 'status', 'message': f"*** SCORE: {current_state} ***"})
                         elif current_state == "LEFT_HIT_SELF":
                             if left_hp > 0:
@@ -249,7 +254,6 @@ def main():
         value=RIGHT_HP # Start full
     )
     right_hp_bar.grid(row=1, column=2, padx=20, pady=10, sticky="ns")
-
 
     # Queue for communication between threads
     output_queue = queue.Queue()
