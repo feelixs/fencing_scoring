@@ -2,7 +2,7 @@ import hid
 from datetime import datetime
 import time
 import tkinter as tk
-from tkinter import font as tkFont
+from tkinter import ttk, font as tkFont
 import threading
 import queue
 
@@ -62,13 +62,19 @@ def process_vsm_data(device, output_queue, stop_event):
     and puts formatted messages into the output queue.
     Runs until stop_event is set.
     """
+    # Initialize health points
+    left_hp = LEFT_HP
+    right_hp = RIGHT_HP
+
     last_reported_state = None
     time_last_reported = None
     debounce_time = 0.3  # 300ms debounce time (cooldown period)
     start_time = datetime.now()
 
-    output_queue.put("Monitoring fencing hits...")
-    output_queue.put("-" * 30)
+    # Initial status and health update
+    output_queue.put({'type': 'status', 'message': "Monitoring fencing hits..."})
+    output_queue.put({'type': 'status', 'message': "-" * 30})
+    output_queue.put({'type': 'health', 'left': left_hp, 'right': right_hp})
 
     try:
         while not stop_event.is_set():
@@ -87,11 +93,29 @@ def process_vsm_data(device, output_queue, stop_event):
                        (current_time - time_last_reported).total_seconds() > debounce_time:
 
                         elapsed = (current_time - start_time).total_seconds()
-                        message = f"[{elapsed:.2f}s] {current_state}"
-                        output_queue.put(message)
+                        status_message = f"[{elapsed:.2f}s] {current_state}"
+                        output_queue.put({'type': 'status', 'message': status_message})
 
-                        if current_state in ["LEFT_GOT_HIT", "RIGHT_GOT_HIT"]:
-                            output_queue.put(f"*** SCORE: {current_state} ***")
+                        # Calculate HP changes
+                        hp_changed = False
+                        if current_state == "LEFT_GOT_HIT":
+                            right_hp = max(0, right_hp - GLOBAL_HIT_DMG)
+                            hp_changed = True
+                            output_queue.put({'type': 'status', 'message': f"*** SCORE: {current_state} ***"})
+                        elif current_state == "RIGHT_GOT_HIT":
+                            left_hp = max(0, left_hp - GLOBAL_HIT_DMG)
+                            hp_changed = True
+                            output_queue.put({'type': 'status', 'message': f"*** SCORE: {current_state} ***"})
+                        elif current_state == "LEFT_HIT_SELF":
+                            left_hp = max(0, left_hp - GLOBAL_HIT_DMG_SELF)
+                            hp_changed = True
+                        elif current_state == "RIGHT_SELF_HIT":
+                            right_hp = max(0, right_hp - GLOBAL_HIT_DMG_SELF)
+                            hp_changed = True
+
+                        # Send health update if changed
+                        if hp_changed:
+                            output_queue.put({'type': 'health', 'left': left_hp, 'right': right_hp})
 
                         last_reported_state = current_state
                         time_last_reported = current_time
@@ -100,29 +124,36 @@ def process_vsm_data(device, output_queue, stop_event):
             # If read is non-blocking or very fast, a small sleep might be needed again
 
     except Exception as e:
-        output_queue.put(f"Error in device loop: {e}")
+        output_queue.put({'type': 'status', 'message': f"Error in device loop: {e}"})
     finally:
-        output_queue.put("Device monitoring stopped.")
+        output_queue.put({'type': 'status', 'message': "Device monitoring stopped."})
         if device:
             device.close()
 
 
-def update_gui(root, label, output_queue):
-    """ Checks the queue for messages and updates the GUI label. """
+def update_gui(root, status_label, left_hp_bar, right_hp_bar, output_queue):
+    """ Checks the queue for messages and updates the GUI elements. """
     try:
         while True:  # Process all messages currently in queue
-            message = output_queue.get_nowait()
-            # Keep only the last few lines (e.g., 5 lines) for display
-            current_lines = label.cget("text").split('\n')
-            max_lines = 5
-            new_lines = (current_lines + [message])[-max_lines:]
-            label.config(text="\n".join(new_lines))
+            item = output_queue.get_nowait()
+
+            if item['type'] == 'status':
+                message = item['message']
+                # Keep only the last few lines (e.g., 5 lines) for display in status label
+                current_lines = status_label.cget("text").split('\n')
+                max_lines = 5
+                new_lines = (current_lines + [message])[-max_lines:]
+                status_label.config(text="\n".join(new_lines))
+            elif item['type'] == 'health':
+                left_hp_bar['value'] = item['left']
+                right_hp_bar['value'] = item['right']
+
             root.update_idletasks()  # Update GUI immediately
     except queue.Empty:
         pass  # No messages currently
 
     # Schedule the next check
-    root.after(100, update_gui, root, label, output_queue)  # Check every 100ms
+    root.after(100, update_gui, root, status_label, left_hp_bar, right_hp_bar, output_queue) # Check every 100ms
 
 
 def start_device_thread(output_queue, stop_event):
@@ -143,21 +174,59 @@ def start_device_thread(output_queue, stop_event):
 def main():
     root = tk.Tk()
     root.title("Fencing Hit Detector")
-    root.geometry("400x200")  # Initial size
+    root.geometry("800x250")  # Increased window size
 
-    # Configure font
-    display_font = tkFont.Font(family="Helvetica", size=16)
+    # Configure fonts
+    label_font = tkFont.Font(family="Helvetica", size=12)
+    status_font = tkFont.Font(family="Helvetica", size=16)
+    hp_font = tkFont.Font(family="Helvetica", size=14, weight="bold")
 
-    # Create label for displaying status
+    # --- Layout using grid ---
+    root.grid_columnconfigure(0, weight=1, uniform="group1") # Left HP bar column
+    root.grid_columnconfigure(1, weight=2, uniform="group1") # Status label column
+    root.grid_columnconfigure(2, weight=1, uniform="group1") # Right HP bar column
+    root.grid_rowconfigure(0, weight=0) # Labels row
+    root.grid_rowconfigure(1, weight=1) # Progress bars/Status row
+
+    # --- Left Player Elements ---
+    left_label = tk.Label(root, text="LEFT PLAYER", font=label_font)
+    left_label.grid(row=0, column=0, pady=(10, 0))
+
+    left_hp_bar = ttk.Progressbar(
+        root,
+        orient="vertical",
+        length=150, # Height of the bar
+        mode="determinate",
+        maximum=LEFT_HP,
+        value=LEFT_HP # Start full
+    )
+    left_hp_bar.grid(row=1, column=0, padx=20, pady=10, sticky="ns")
+
+    # --- Center Status Label ---
     status_label = tk.Label(
         root,
         text="Initializing...",
-        font=display_font,
+        font=status_font,
         justify=tk.CENTER,
-        anchor=tk.CENTER  # Center text within the label
+        anchor=tk.CENTER,
+        wraplength=350 # Wrap text if it gets too long
     )
-    # Make label expand to fill window and center content
-    status_label.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
+    status_label.grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky="nsew")
+
+    # --- Right Player Elements ---
+    right_label = tk.Label(root, text="RIGHT PLAYER", font=label_font)
+    right_label.grid(row=0, column=2, pady=(10, 0))
+
+    right_hp_bar = ttk.Progressbar(
+        root,
+        orient="vertical",
+        length=150, # Height of the bar
+        mode="determinate",
+        maximum=RIGHT_HP,
+        value=RIGHT_HP # Start full
+    )
+    right_hp_bar.grid(row=1, column=2, padx=20, pady=10, sticky="ns")
+
 
     # Queue for communication between threads
     output_queue = queue.Queue()
@@ -178,8 +247,8 @@ def main():
 
     root.protocol("WM_DELETE_WINDOW", on_closing)
 
-    # Start the GUI update loop
-    update_gui(root, status_label, output_queue)
+    # Start the GUI update loop, passing the necessary widgets
+    update_gui(root, status_label, left_hp_bar, right_hp_bar, output_queue)
 
     # Start the Tkinter main loop
     root.mainloop()
