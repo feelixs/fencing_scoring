@@ -7,6 +7,15 @@ import threading
 import queue
 
 
+GLOBAL_HIT_DMG = 10
+GLOBAL_HIT_DMG_SELF = 5
+
+GLOBAL_HIT_DMG_PER_MILLISECOND = 1
+
+RIGHT_HP = 250
+LEFT_HP = 250
+
+
 def find_vsm_device():
     # Vendor ID and Product ID for the VSM device
     vendor_id = 0x04bc
