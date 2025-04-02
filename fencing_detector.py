@@ -41,11 +41,10 @@ def detect_hit_state(data):
     return hit_states.get(signature, "UNKNOWN")
 
 def process_vsm_data(device):
-    # Track the last reported state and potential pending changes
+    # Track the last reported state and the time it was reported
     last_reported_state = None
-    pending_state = None
-    time_pending_state_detected = None
-    debounce_time = 0.3  # 300ms debounce time
+    time_last_reported = None
+    debounce_time = 0.3  # 300ms debounce time (cooldown period)
     start_time = datetime.now()
 
     try:
@@ -60,30 +59,23 @@ def process_vsm_data(device):
                 current_time = datetime.now()
                 current_state = detect_hit_state(data)
 
-                if current_state == last_reported_state:
-                    # State is stable and matches the last reported state, clear any pending change
-                    pending_state = None
-                    time_pending_state_detected = None
-                else:
-                    # State is different from the last reported one
-                    if current_state != pending_state:
-                        # This is a new potential state change, start the timer
-                        pending_state = current_state
-                        time_pending_state_detected = current_time
-                    else:
-                        # State is still the same as the pending one, check if debounce time has passed
-                        if time_pending_state_detected and \
-                           (current_time - time_pending_state_detected).total_seconds() > debounce_time:
-                            # Debounce time passed, report the change
-                            elapsed = (current_time - start_time).total_seconds()
-                            print(f"[{elapsed:.2f}s] {pending_state}")
-                            if pending_state in ["LEFT_GOT_HIT", "RIGHT_GOT_HIT"]:
-                                print(f"*** SCORE: {pending_state} ***")
+                # Check if the state is different from the last reported one
+                if current_state != last_reported_state:
+                    # Check if enough time has passed since the last report (or if it's the first report)
+                    if time_last_reported is None or \
+                       (current_time - time_last_reported).total_seconds() > debounce_time:
+                        
+                        # Report the new state immediately
+                        elapsed = (current_time - start_time).total_seconds()
+                        print(f"[{elapsed:.2f}s] {current_state}")
+                        if current_state in ["LEFT_GOT_HIT", "RIGHT_GOT_HIT"]:
+                            print(f"*** SCORE: {current_state} ***")
 
-                            # Update the reported state and clear pending status
-                            last_reported_state = pending_state
-                            pending_state = None
-                            time_pending_state_detected = None
+                        # Update the last reported state and the time it was reported
+                        last_reported_state = current_state
+                        time_last_reported = current_time
+                    # else: # State changed, but within the debounce period - ignore it.
+                    #     pass 
 
             # Small delay to prevent hogging CPU
             time.sleep(0.01)
