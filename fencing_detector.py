@@ -49,7 +49,10 @@ def detect_hit_state(data):
         (44, 80): "RIGHT_GOT_HIT",
         (38, 80): "LEFT_HIT_SELF",
         (4, 120): "RIGHT_SELF_HIT",
-        (20, 84): "WEAPONS_HIT"
+        (20, 84): "WEAPONS_HIT",
+        (0, 64): "BOTH_DISCONNECTED",
+        (0, 80): "LEFT_DISCONNECTED",
+        (4, 64): "RIGHT_DISCONNECTED"
     }
     
     return hit_states.get(signature, "UNKNOWN")
