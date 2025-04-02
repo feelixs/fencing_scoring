@@ -176,8 +176,18 @@ def update_gui(root, status_label, left_hp_bar, right_hp_bar, output_queue):
                 new_lines = (current_lines + [message])[-max_lines:]
                 status_label.config(text="\n".join(new_lines))
             elif item['type'] == 'health':
-                left_hp_bar['value'] = item['left']
-                right_hp_bar['value'] = item['right']
+                left_hp = item['left']
+                right_hp = item['right']
+
+                left_hp_bar['value'] = left_hp
+                right_hp_bar['value'] = right_hp
+
+                # Update bar colors based on health
+                left_style = get_hp_color_style(left_hp, LEFT_HP)
+                right_style = get_hp_color_style(right_hp, RIGHT_HP)
+                left_hp_bar.config(style=left_style)
+                right_hp_bar.config(style=right_style)
+
 
             root.update_idletasks()  # Update GUI immediately
     except queue.Empty:
@@ -185,6 +195,17 @@ def update_gui(root, status_label, left_hp_bar, right_hp_bar, output_queue):
 
     # Schedule the next check
     root.after(100, update_gui, root, status_label, left_hp_bar, right_hp_bar, output_queue) # Check every 100ms
+
+
+def get_hp_color_style(current_hp, max_hp):
+    """ Returns the ttk style name based on HP percentage. """
+    percentage = (current_hp / max_hp) * 100
+    if percentage > 60:
+        return "Green.Vertical.TProgressbar"
+    elif percentage > 25:
+        return "Yellow.Vertical.TProgressbar"
+    else:
+        return "Red.Vertical.TProgressbar"
 
 
 def start_device_thread(output_queue, stop_event):
@@ -205,10 +226,18 @@ def start_device_thread(output_queue, stop_event):
 def main():
     root = tk.Tk()
     root.title("Fencing Hit Detector")
-    root.geometry("800x250")  # Increased window size
+    # root.geometry("800x250") # Removed fixed size
+    root.attributes('-fullscreen', True) # Make fullscreen
+
+    # Configure styles for progress bars
+    style = ttk.Style(root)
+    # Define colors for different health levels
+    style.configure("Green.Vertical.TProgressbar", background='green')
+    style.configure("Yellow.Vertical.TProgressbar", background='yellow')
+    style.configure("Red.Vertical.TProgressbar", background='red')
 
     # Configure fonts
-    label_font = tkFont.Font(family="Helvetica", size=12)
+    label_font = tkFont.Font(family="Helvetica", size=18) # Increased font size
     status_font = tkFont.Font(family="Helvetica", size=16)
     hp_font = tkFont.Font(family="Helvetica", size=14, weight="bold")
 
@@ -221,17 +250,18 @@ def main():
 
     # --- Left Player Elements ---
     left_label = tk.Label(root, text="LEFT PLAYER", font=label_font)
-    left_label.grid(row=0, column=0, pady=(10, 0))
+    left_label.grid(row=0, column=0, pady=(20, 5)) # Increased padding
 
     left_hp_bar = ttk.Progressbar(
         root,
         orient="vertical",
-        length=150, # Height of the bar
+        length=500, # Increased height of the bar
         mode="determinate",
         maximum=LEFT_HP,
-        value=LEFT_HP # Start full
+        value=LEFT_HP, # Start full
+        style="Green.Vertical.TProgressbar" # Initial style
     )
-    left_hp_bar.grid(row=1, column=0, padx=20, pady=10, sticky="ns")
+    left_hp_bar.grid(row=1, column=0, padx=50, pady=20, sticky="ns") # Increased padding
 
     # --- Center Status Label ---
     status_label = tk.Label(
@@ -246,17 +276,18 @@ def main():
 
     # --- Right Player Elements ---
     right_label = tk.Label(root, text="RIGHT PLAYER", font=label_font)
-    right_label.grid(row=0, column=2, pady=(10, 0))
+    right_label.grid(row=0, column=2, pady=(20, 5)) # Increased padding
 
     right_hp_bar = ttk.Progressbar(
         root,
         orient="vertical",
-        length=150, # Height of the bar
+        length=500, # Increased height of the bar
         mode="determinate",
         maximum=RIGHT_HP,
-        value=RIGHT_HP # Start full
+        value=RIGHT_HP, # Start full
+        style="Green.Vertical.TProgressbar" # Initial style
     )
-    right_hp_bar.grid(row=1, column=2, padx=20, pady=10, sticky="ns")
+    right_hp_bar.grid(row=1, column=2, padx=50, pady=20, sticky="ns") # Increased padding
 
     # Queue for communication between threads
     output_queue = queue.Queue()
