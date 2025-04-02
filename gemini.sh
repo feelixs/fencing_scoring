@@ -24,10 +24,10 @@ api_key_var="api_key_${key_number}"
 selected_key=${!api_key_var}
 
 # Add the API key to the arguments
-aider_args+=(--api-key gemini/gemini-2.5-pro-exp-03-25="$selected_key")
+aider_args+=(--api-key gemini="$selected_key")
 
 # Execute aider with the constructed arguments
 echo "Using API key ${key_number}"
-echo "${aider_args[@]}" 
+echo aider "${aider_args[@]}" 
 aider "${aider_args[@]}"
 
