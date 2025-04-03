@@ -215,29 +215,12 @@ def update_gui(root, status_label, left_hp_bar, right_hp_bar, output_queue, max_
                 # Update bar colors based on health
                 left_style = get_hp_color_style(left_hp, max_hp)
                 right_style = get_hp_color_style(right_hp, max_hp)
-                left_hp_bar.config(style=left_style)
-                right_hp_bar.config(style=right_style)
-
-
             root.update_idletasks()  # Update GUI immediately
     except queue.Empty:
         pass  # No messages currently
 
     # Schedule the next check
     root.after(100, update_gui, root, status_label, left_hp_bar, right_hp_bar, output_queue, max_hp) # Check every 100ms
-
-
-def get_hp_color_style(current_hp, max_hp):
-    """ Returns the ttk style name based on HP percentage. """
-    percentage = (current_hp / max_hp) * 100
-    if percentage > 75:
-        return "Green.Vertical.TProgressbar"
-    elif percentage > 50:
-        return "Yellow.Vertical.TProgressbar"
-    elif percentage > 25:
-        return "Orange.Vertical.TProgressbar"
-    else:
-        return "Red.Vertical.TProgressbar"
 
 
 def start_device_thread(output_queue, stop_event, settings=None):
@@ -299,18 +282,8 @@ def main():
     # Define colors and thickness for different health levels
     bar_thickness = 120 # Increased thickness for wider bars
     
-    # Fix the ttk styles - this is crucial for proper coloring
+    # Define styles for the progress bars
     style.layout("Green.Vertical.TProgressbar",
-                 [('Vertical.Progressbar.trough',
-                   {'children': [('Vertical.Progressbar.pbar',
-                                  {'side': 'bottom', 'sticky': 'ns'})],
-                    'sticky': 'nswe'})])
-    style.layout("Yellow.Vertical.TProgressbar",
-                 [('Vertical.Progressbar.trough',
-                   {'children': [('Vertical.Progressbar.pbar',
-                                  {'side': 'bottom', 'sticky': 'ns'})],
-                    'sticky': 'nswe'})])
-    style.layout("Orange.Vertical.TProgressbar",
                  [('Vertical.Progressbar.trough',
                    {'children': [('Vertical.Progressbar.pbar',
                                   {'side': 'bottom', 'sticky': 'ns'})],
@@ -320,15 +293,11 @@ def main():
                    {'children': [('Vertical.Progressbar.pbar',
                                   {'side': 'bottom', 'sticky': 'ns'})],
                     'sticky': 'nswe'})])
-    
+
     # Configure the colors and thickness
-    style.configure("Green.Vertical.TProgressbar", troughcolor='lightgray', 
+    style.configure("Green.Vertical.TProgressbar", troughcolor='lightgray',
                    background='green', thickness=bar_thickness)
-    style.configure("Yellow.Vertical.TProgressbar", troughcolor='lightgray', 
-                   background='yellow', thickness=bar_thickness)
-    style.configure("Orange.Vertical.TProgressbar", troughcolor='lightgray', 
-                   background='orange', thickness=bar_thickness)
-    style.configure("Red.Vertical.TProgressbar", troughcolor='lightgray', 
+    style.configure("Red.Vertical.TProgressbar", troughcolor='lightgray',
                    background='red', thickness=bar_thickness)
 
     # Configure fonts
@@ -347,7 +316,7 @@ def main():
     root.grid_rowconfigure(3, weight=0) # Settings row
 
     # --- Left Player Elements ---
-    left_label = tk.Label(root, text="LEFT PLAYER", font=label_font, bg="blue", fg="white")
+    left_label = tk.Label(root, text="LEFT PLAYER", font=label_font) # Removed bg/fg
     left_label.grid(row=0, column=0, pady=(20, 5), sticky="ew") # Increased padding
 
     left_hp_bar = ttk.Progressbar(
@@ -362,7 +331,7 @@ def main():
     left_hp_bar.grid(row=1, column=0, padx=20, pady=20, sticky="ns") # Take up whole side
 
     # --- Right Player Elements ---
-    right_label = tk.Label(root, text="RIGHT PLAYER", font=label_font, bg="red", fg="white")
+    right_label = tk.Label(root, text="RIGHT PLAYER", font=label_font) # Removed bg/fg
     right_label.grid(row=0, column=1, pady=(20, 5), sticky="ew") # Increased padding
 
     right_hp_bar = ttk.Progressbar(
@@ -372,7 +341,7 @@ def main():
         mode="determinate",
         maximum=settings['max_hp'],
         value=settings['max_hp'], # Start full
-        style="Green.Vertical.TProgressbar" # Initial style
+        style="Red.Vertical.TProgressbar" # Set to Red style
     )
     right_hp_bar.grid(row=1, column=1, padx=20, pady=20, sticky="ns") # Take up whole side
 
