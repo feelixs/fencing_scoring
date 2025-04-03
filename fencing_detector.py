@@ -212,9 +212,8 @@ def update_gui(root, status_label, left_hp_bar, right_hp_bar, output_queue, max_
                 left_hp_bar['value'] = left_hp
                 right_hp_bar['value'] = right_hp
 
-                # Update bar colors based on health
-                left_style = get_hp_color_style(left_hp, max_hp)
-                right_style = get_hp_color_style(right_hp, max_hp)
+                # Styles are now static (Green for left, Red for right)
+                # No need to update style based on health anymore
             root.update_idletasks()  # Update GUI immediately
     except queue.Empty:
         pass  # No messages currently
