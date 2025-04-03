@@ -46,11 +46,11 @@ def detect_hit_state(data):
     # Skip the first 2 bytes (counter and report ID)
     if len(data) < 5:  # Need at least counter, report ID, and one data pair
         return "Unknown"
-    
+
     # Extract key signature bytes - using 3rd and 4th bytes as signature
     # The pattern repeats, so we check the first instance
     signature = (data[2], data[3])
-    
+
     # Match the signature with known patterns
     hit_states = {
         (4, 80): "NEUTRAL",
@@ -81,9 +81,10 @@ def process_vsm_data(device, output_queue, stop_event, settings=None):
     # Use provided settings or fallback to global defaults
     hit_dmg = settings.get('hit_dmg', GLOBAL_HIT_DMG) if settings else GLOBAL_HIT_DMG
     hit_dmg_self = settings.get('hit_dmg_self', GLOBAL_HIT_DMG_SELF) if settings else GLOBAL_HIT_DMG_SELF
-    hit_dmg_per_ms = settings.get('hit_dmg_per_ms', GLOBAL_HIT_DMG_PER_MILLISECOND) if settings else GLOBAL_HIT_DMG_PER_MILLISECOND
+    hit_dmg_per_ms = settings.get('hit_dmg_per_ms',
+                                  GLOBAL_HIT_DMG_PER_MILLISECOND) if settings else GLOBAL_HIT_DMG_PER_MILLISECOND
     max_hp = settings.get('max_hp', LEFT_HP) if settings else LEFT_HP
-    
+
     # Initialize health points
     left_hp = max_hp
     right_hp = max_hp
@@ -92,7 +93,7 @@ def process_vsm_data(device, output_queue, stop_event, settings=None):
     time_last_reported = None
     debounce_time = settings.get('debounce_time', DEBOUNCE_TIME) if settings else DEBOUNCE_TIME
     start_time = datetime.now()
-    last_loop_time = start_time # Track time for delta calculation
+    last_loop_time = start_time  # Track time for delta calculation
 
     # Initial status and health update
     output_queue.put({'type': 'status', 'message': "Monitoring fencing hits..."})
@@ -116,7 +117,7 @@ def process_vsm_data(device, output_queue, stop_event, settings=None):
 
                 # --- Continuous Damage Calculation (Opponent Hits) ---
                 damage_increment = time_delta.total_seconds() * 1000 * hit_dmg_per_ms
-                
+
                 if current_state == "LEFT_GOT_HIT" or current_state == "BOTH_HITTING":
                     if right_hp > 0:
                         right_hp = max(0, right_hp - damage_increment)
@@ -130,7 +131,7 @@ def process_vsm_data(device, output_queue, stop_event, settings=None):
                 # --- State Change Reporting & One-Time Damage (Self-Hits) ---
                 if current_state != last_reported_state:
                     if time_last_reported is None or \
-                       (current_time - time_last_reported).total_seconds() > debounce_time:
+                            (current_time - time_last_reported).total_seconds() > debounce_time:
 
                         elapsed = (current_time - start_time).total_seconds()
                         status_message = f"[{elapsed:.2f}s] {current_state}"
@@ -164,12 +165,12 @@ def process_vsm_data(device, output_queue, stop_event, settings=None):
                             output_queue.put({'type': 'status', 'message': f"*** SCORE: LEFT SELF-HIT ***"})
                             if left_hp > 0:
                                 left_hp = max(0, left_hp - hit_dmg_self)
-                                hp_changed = True # Mark HP changed for update below
+                                hp_changed = True  # Mark HP changed for update below
                         elif current_state == "RIGHT_SELF_HIT":
                             output_queue.put({'type': 'status', 'message': f"*** SCORE: RIGHT SELF-HIT ***"})
                             if right_hp > 0:
                                 right_hp = max(0, right_hp - hit_dmg_self)
-                                hp_changed = True # Mark HP changed for update below
+                                hp_changed = True  # Mark HP changed for update below
 
                         # Update reported state *after* handling the change
                         last_reported_state = current_state
@@ -219,7 +220,7 @@ def update_gui(root, status_label, left_hp_bar, right_hp_bar, output_queue, max_
         pass  # No messages currently
 
     # Schedule the next check
-    root.after(100, update_gui, root, status_label, left_hp_bar, right_hp_bar, output_queue, max_hp) # Check every 100ms
+    root.after(100, update_gui, root, status_label, left_hp_bar, right_hp_bar, output_queue, max_hp)  # Check every 100ms
 
 
 def start_device_thread(output_queue, stop_event, settings=None):
@@ -229,6 +230,7 @@ def start_device_thread(output_queue, stop_event, settings=None):
     Args:
         settings: Dictionary with dynamic settings to pass to the processing function.
     """
+
     def thread_target():
         vsm_device = find_vsm_device()
         if vsm_device:
@@ -253,10 +255,10 @@ def restart_device_thread(output_queue, stop_event, current_thread, settings=Non
     if current_thread:
         stop_event.set()
         current_thread.join(timeout=1.0)
-    
+
     # Reset the stop event
     stop_event.clear()
-    
+
     # Start a new thread
     return start_device_thread(output_queue, stop_event, settings)
 
@@ -265,7 +267,7 @@ def main():
     root = tk.Tk()
     root.title("Fencing Hit Detector")
     # root.geometry("800x250") # Removed fixed size
-    root.attributes('-fullscreen', True) # Make fullscreen
+    root.attributes('-fullscreen', True)  # Make fullscreen
 
     # Initialize settings with default values
     settings = {
@@ -279,8 +281,8 @@ def main():
     # Configure styles for progress bars
     style = ttk.Style(root)
     # Define colors and thickness for different health levels
-    bar_thickness = 120 # Increased thickness for wider bars
-    
+    bar_thickness = 120  # Increased thickness for wider bars
+
     # Define styles for the progress bars
     style.layout("Green.Vertical.TProgressbar",
                  [('Vertical.Progressbar.trough',
@@ -295,54 +297,54 @@ def main():
 
     # Configure the colors and thickness
     style.configure("Green.Vertical.TProgressbar", troughcolor='lightgray',
-                   background='green', thickness=bar_thickness)
+                    background='green', thickness=bar_thickness)
     style.configure("Red.Vertical.TProgressbar", troughcolor='lightgray',
-                   background='red', thickness=bar_thickness)
+                    background='red', thickness=bar_thickness)
 
     # Configure fonts
-    label_font = tkFont.Font(family="Helvetica", size=18) # Increased font size
+    label_font = tkFont.Font(family="Helvetica", size=18)  # Increased font size
     status_font = tkFont.Font(family="Helvetica", size=16)
     hp_font = tkFont.Font(family="Helvetica", size=14, weight="bold")
     entry_font = tkFont.Font(family="Helvetica", size=12)
     button_font = tkFont.Font(family="Helvetica", size=12, weight="bold")
 
     # --- Layout using grid ---
-    root.grid_columnconfigure(0, weight=1, uniform="group1") # Left HP bar column
-    root.grid_columnconfigure(1, weight=1, uniform="group1") # Right HP bar column
-    root.grid_rowconfigure(0, weight=0) # Labels row
-    root.grid_rowconfigure(1, weight=1) # Progress bars row
-    root.grid_rowconfigure(2, weight=0) # Debug/Status row
-    root.grid_rowconfigure(3, weight=0) # Settings row
+    root.grid_columnconfigure(0, weight=1, uniform="group1")  # Left HP bar column
+    root.grid_columnconfigure(1, weight=1, uniform="group1")  # Right HP bar column
+    root.grid_rowconfigure(0, weight=0)  # Labels row
+    root.grid_rowconfigure(1, weight=1)  # Progress bars row
+    root.grid_rowconfigure(2, weight=0)  # Debug/Status row
+    root.grid_rowconfigure(3, weight=0)  # Settings row
 
     # --- Left Player Elements ---
-    left_label = tk.Label(root, text="LEFT PLAYER", font=label_font) # Removed bg/fg
-    left_label.grid(row=0, column=0, pady=(20, 5), sticky="ew") # Increased padding
+    left_label = tk.Label(root, text="LEFT PLAYER", font=label_font)  # Removed bg/fg
+    left_label.grid(row=0, column=0, pady=(20, 5), sticky="ew")  # Increased padding
 
     left_hp_bar = ttk.Progressbar(
         root,
         orient="vertical",
-        length=600, # Increased height of the bar
+        length=600,  # Increased height of the bar
         mode="determinate",
         maximum=settings['max_hp'],
-        value=settings['max_hp'], # Start full
-        style="Green.Vertical.TProgressbar" # Initial style
+        value=settings['max_hp'],  # Start full
+        style="Green.Vertical.TProgressbar"  # Initial style
     )
-    left_hp_bar.grid(row=1, column=0, padx=20, pady=20, sticky="ns") # Take up whole side
+    left_hp_bar.grid(row=1, column=0, padx=20, pady=20, sticky="ns")  # Take up whole side
 
     # --- Right Player Elements ---
-    right_label = tk.Label(root, text="RIGHT PLAYER", font=label_font) # Removed bg/fg
-    right_label.grid(row=0, column=1, pady=(20, 5), sticky="ew") # Increased padding
+    right_label = tk.Label(root, text="RIGHT PLAYER", font=label_font)  # Removed bg/fg
+    right_label.grid(row=0, column=1, pady=(20, 5), sticky="ew")  # Increased padding
 
     right_hp_bar = ttk.Progressbar(
         root,
         orient="vertical",
-        length=600, # Increased height of the bar
+        length=600,  # Increased height of the bar
         mode="determinate",
         maximum=settings['max_hp'],
-        value=settings['max_hp'], # Start full
-        style="Red.Vertical.TProgressbar" # Set to Red style
+        value=settings['max_hp'],  # Start full
+        style="Red.Vertical.TProgressbar"  # Set to Red style
     )
-    right_hp_bar.grid(row=1, column=1, padx=20, pady=20, sticky="ns") # Take up whole side
+    right_hp_bar.grid(row=1, column=1, padx=20, pady=20, sticky="ns")  # Take up whole side
 
     # --- Bottom Center Status Label (Debug info) ---
     status_label = tk.Label(
@@ -351,40 +353,44 @@ def main():
         font=status_font,
         justify=tk.CENTER,
         anchor=tk.CENTER,
-        wraplength=800 # Wrap text if it gets too long
+        wraplength=800  # Wrap text if it gets too long
     )
     status_label.grid(row=2, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
 
     # --- Settings Panel Frame ---
     settings_frame = ttk.Frame(root, padding="10 10 10 10")
     settings_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=10)
-    
+
     # Create a settings panel with input fields
-    ttk.Label(settings_frame, text="Initial Hit Damage:", font=entry_font).grid(row=0, column=0, padx=5, pady=5, sticky="e")
+    ttk.Label(settings_frame, text="Initial Hit Damage:", font=entry_font).grid(row=0, column=0, padx=5, pady=5,
+                                                                                sticky="e")
     hit_dmg_entry = ttk.Entry(settings_frame, width=8, font=entry_font)
     hit_dmg_entry.insert(0, str(settings['hit_dmg']))
     hit_dmg_entry.grid(row=0, column=1, padx=5, pady=5, sticky="w")
-    
-    ttk.Label(settings_frame, text="Self Hit Damage:", font=entry_font).grid(row=0, column=2, padx=5, pady=5, sticky="e")
+
+    ttk.Label(settings_frame, text="Self Hit Damage:", font=entry_font).grid(row=0, column=2, padx=5, pady=5,
+                                                                             sticky="e")
     hit_dmg_self_entry = ttk.Entry(settings_frame, width=8, font=entry_font)
     hit_dmg_self_entry.insert(0, str(settings['hit_dmg_self']))
     hit_dmg_self_entry.grid(row=0, column=3, padx=5, pady=5, sticky="w")
-    
-    ttk.Label(settings_frame, text="Continuous Damage/ms:", font=entry_font).grid(row=1, column=0, padx=5, pady=5, sticky="e")
+
+    ttk.Label(settings_frame, text="Continuous Damage/ms:", font=entry_font).grid(row=1, column=0, padx=5, pady=5,
+                                                                                  sticky="e")
     hit_dmg_per_ms_entry = ttk.Entry(settings_frame, width=8, font=entry_font)
     hit_dmg_per_ms_entry.insert(0, str(settings['hit_dmg_per_ms']))
     hit_dmg_per_ms_entry.grid(row=1, column=1, padx=5, pady=5, sticky="w")
-    
+
     ttk.Label(settings_frame, text="Starting HP:", font=entry_font).grid(row=1, column=2, padx=5, pady=5, sticky="e")
     max_hp_entry = ttk.Entry(settings_frame, width=8, font=entry_font)
     max_hp_entry.insert(0, str(settings['max_hp']))
     max_hp_entry.grid(row=1, column=3, padx=5, pady=5, sticky="w")
-    
-    ttk.Label(settings_frame, text="Debounce Time (s):", font=entry_font).grid(row=2, column=0, padx=5, pady=5, sticky="e")
+
+    ttk.Label(settings_frame, text="Debounce Time (s):", font=entry_font).grid(row=2, column=0, padx=5, pady=5,
+                                                                               sticky="e")
     debounce_time_entry = ttk.Entry(settings_frame, width=8, font=entry_font)
     debounce_time_entry.insert(0, str(settings['debounce_time']))
     debounce_time_entry.grid(row=2, column=1, padx=5, pady=5, sticky="w")
-    
+
     # Queue for communication between threads
     output_queue = queue.Queue()
 
@@ -393,7 +399,7 @@ def main():
 
     # Start the device monitoring thread
     device_thread = start_device_thread(output_queue, stop_event, settings)
-    
+
     # Function to apply settings and reset game
     def apply_settings_and_reset():
         nonlocal device_thread
@@ -405,28 +411,29 @@ def main():
                 'max_hp': float(max_hp_entry.get()),
                 'debounce_time': float(debounce_time_entry.get())
             }
-            
+
             # Update progress bars to use new max HP
             left_hp_bar['maximum'] = new_settings['max_hp']
             right_hp_bar['maximum'] = new_settings['max_hp']
-            
+
             # Reset HP to full
             left_hp_bar['value'] = new_settings['max_hp']
             right_hp_bar['value'] = new_settings['max_hp']
-            
+
             # Restart the device thread with new settings
             device_thread = restart_device_thread(output_queue, stop_event, device_thread, new_settings)
-            
+
             # Update status
             output_queue.put({'type': 'status', 'message': "Game reset with new settings!"})
-            
+
         except ValueError:
             output_queue.put({'type': 'status', 'message': "Error: Invalid input values."})
-    
+
     # Add Apply/Reset button
-    reset_button = ttk.Button(settings_frame, text="APPLY & RESET", command=apply_settings_and_reset, style="Accent.TButton")
+    reset_button = ttk.Button(settings_frame, text="APPLY & RESET", command=apply_settings_and_reset,
+                              style="Accent.TButton")
     reset_button.grid(row=2, column=2, columnspan=2, padx=20, pady=5, sticky="ew")
-    
+
     # Configure button style
     style.configure("Accent.TButton", font=button_font)
 
