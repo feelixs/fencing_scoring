@@ -5,14 +5,23 @@ from tkinter import ttk, font as tkFont
 import threading
 import queue
 
+# diff colors for each player? -> take up the whole side of the screen
+# move debugging to bottom center
+# flashing color on damage?
 
-GLOBAL_HIT_DMG = 50
+# beeping on hit & game over -> beep -> whistle
+# diff beeps for each person being hit?
+
+
+GLOBAL_HIT_DMG = 10
 GLOBAL_HIT_DMG_SELF = GLOBAL_HIT_DMG
 
-GLOBAL_HIT_DMG_PER_MILLISECOND = 0.1
+GLOBAL_HIT_DMG_PER_MILLISECOND = 3 / 40  # 3 points per 40ms
 
 RIGHT_HP = 250
 LEFT_HP = 250
+
+DEBOUNCE_TIME = 0.03
 
 
 def find_vsm_device():
@@ -45,35 +54,43 @@ def detect_hit_state(data):
     # Match the signature with known patterns
     hit_states = {
         (4, 80): "NEUTRAL",
-        (4, 114): "LEFT_GOT_HIT",
-        (44, 80): "RIGHT_GOT_HIT",
+        (4, 114): "RIGHT_GOT_HIT",
+        (44, 80): "LEFT_GOT_HIT",
         (38, 80): "LEFT_HIT_SELF",
         (4, 120): "RIGHT_SELF_HIT",
         (20, 84): "WEAPONS_HIT",
         (0, 64): "BOTH_DISCONNECTED",
         (0, 80): "LEFT_DISCONNECTED",
-        (4, 64): "RIGHT_DISCONNECTED"
+        (4, 64): "RIGHT_DISCONNECTED",
+        (44, 114): "BOTH_HITTING"
     }
-    
+
     return hit_states.get(signature, "UNKNOWN")
 
 
-def process_vsm_data(device, output_queue, stop_event):
+def process_vsm_data(device, output_queue, stop_event, settings=None):
     """
     Reads data from the VSM device, detects state changes, applies debouncing,
     and puts formatted messages into the output queue.
     Runs until stop_event is set.
+    
+    Args:
+        settings: Dictionary with dynamic settings (hit_dmg, hit_dmg_self, 
+                 hit_dmg_per_ms, max_hp, debounce_time)
     """
+    # Use provided settings or fallback to global defaults
+    hit_dmg = settings.get('hit_dmg', GLOBAL_HIT_DMG) if settings else GLOBAL_HIT_DMG
+    hit_dmg_self = settings.get('hit_dmg_self', GLOBAL_HIT_DMG_SELF) if settings else GLOBAL_HIT_DMG_SELF
+    hit_dmg_per_ms = settings.get('hit_dmg_per_ms', GLOBAL_HIT_DMG_PER_MILLISECOND) if settings else GLOBAL_HIT_DMG_PER_MILLISECOND
+    max_hp = settings.get('max_hp', LEFT_HP) if settings else LEFT_HP
+    
     # Initialize health points
-    left_hp = LEFT_HP
-    right_hp = RIGHT_HP
-
-    left_hp = LEFT_HP
-    right_hp = RIGHT_HP
+    left_hp = max_hp
+    right_hp = max_hp
 
     last_reported_state = None
     time_last_reported = None
-    debounce_time = 0.3  # 300ms debounce time (cooldown period)
+    debounce_time = settings.get('debounce_time', DEBOUNCE_TIME) if settings else DEBOUNCE_TIME
     start_time = datetime.now()
     last_loop_time = start_time # Track time for delta calculation
 
@@ -98,14 +115,14 @@ def process_vsm_data(device, output_queue, stop_event):
                 current_state = detect_hit_state(data)
 
                 # --- Continuous Damage Calculation (Opponent Hits) ---
-                if current_state == "LEFT_GOT_HIT":
-                    damage_increment = time_delta.total_seconds() * 1000 * GLOBAL_HIT_DMG_PER_MILLISECOND
+                damage_increment = time_delta.total_seconds() * 1000 * hit_dmg_per_ms
+                
+                if current_state == "LEFT_GOT_HIT" or current_state == "BOTH_HITTING":
                     if right_hp > 0:
                         right_hp = max(0, right_hp - damage_increment)
                         hp_changed = True
 
-                elif current_state == "RIGHT_GOT_HIT":
-                    damage_increment = time_delta.total_seconds() * 1000 * GLOBAL_HIT_DMG_PER_MILLISECOND
+                if current_state == "RIGHT_GOT_HIT" or current_state == "BOTH_HITTING":
                     if left_hp > 0:
                         left_hp = max(0, left_hp - damage_increment)
                         hp_changed = True
@@ -120,25 +137,38 @@ def process_vsm_data(device, output_queue, stop_event):
                         output_queue.put({'type': 'status', 'message': status_message})
 
                         # Apply one-time damage for initial hits and self-hits
-                        if current_state == "LEFT_GOT_HIT":
-                            # Apply initial hit damage plus report score
+                        # Handle BOTH_HITTING as a special case
+                        if current_state == "BOTH_HITTING":
+                            output_queue.put({'type': 'status', 'message': f"*** SCORE: BOTH HIT ***"})
+                            # Apply damage to both players
                             if right_hp > 0:
-                                right_hp = max(0, right_hp - GLOBAL_HIT_DMG)
+                                right_hp = max(0, right_hp - hit_dmg)
                                 hp_changed = True
-                            output_queue.put({'type': 'status', 'message': f"*** SCORE: {current_state} ***"})
+                            if left_hp > 0:
+                                left_hp = max(0, left_hp - hit_dmg)
+                                hp_changed = True
+                        # Handle individual hits
+                        elif current_state == "LEFT_GOT_HIT":
+                            output_queue.put({'type': 'status', 'message': f"*** SCORE: LEFT PLAYER HIT ***"})
+                            # Apply initial hit damage
+                            if right_hp > 0:
+                                right_hp = max(0, right_hp - hit_dmg)
+                                hp_changed = True
                         elif current_state == "RIGHT_GOT_HIT":
-                            # Apply initial hit damage plus report score
+                            output_queue.put({'type': 'status', 'message': f"*** SCORE: RIGHT PLAYER HIT ***"})
+                            # Apply initial hit damage
                             if left_hp > 0:
-                                left_hp = max(0, left_hp - GLOBAL_HIT_DMG)
+                                left_hp = max(0, left_hp - hit_dmg)
                                 hp_changed = True
-                            output_queue.put({'type': 'status', 'message': f"*** SCORE: {current_state} ***"})
                         elif current_state == "LEFT_HIT_SELF":
+                            output_queue.put({'type': 'status', 'message': f"*** SCORE: LEFT SELF-HIT ***"})
                             if left_hp > 0:
-                                left_hp = max(0, left_hp - GLOBAL_HIT_DMG_SELF)
+                                left_hp = max(0, left_hp - hit_dmg_self)
                                 hp_changed = True # Mark HP changed for update below
                         elif current_state == "RIGHT_SELF_HIT":
+                            output_queue.put({'type': 'status', 'message': f"*** SCORE: RIGHT SELF-HIT ***"})
                             if right_hp > 0:
-                                right_hp = max(0, right_hp - GLOBAL_HIT_DMG_SELF)
+                                right_hp = max(0, right_hp - hit_dmg_self)
                                 hp_changed = True # Mark HP changed for update below
 
                         # Update reported state *after* handling the change
@@ -162,7 +192,7 @@ def process_vsm_data(device, output_queue, stop_event):
             device.close()
 
 
-def update_gui(root, status_label, left_hp_bar, right_hp_bar, output_queue):
+def update_gui(root, status_label, left_hp_bar, right_hp_bar, output_queue, max_hp):
     """ Checks the queue for messages and updates the GUI elements. """
     try:
         while True:  # Process all messages currently in queue
@@ -183,8 +213,8 @@ def update_gui(root, status_label, left_hp_bar, right_hp_bar, output_queue):
                 right_hp_bar['value'] = right_hp
 
                 # Update bar colors based on health
-                left_style = get_hp_color_style(left_hp, LEFT_HP)
-                right_style = get_hp_color_style(right_hp, RIGHT_HP)
+                left_style = get_hp_color_style(left_hp, max_hp)
+                right_style = get_hp_color_style(right_hp, max_hp)
                 left_hp_bar.config(style=left_style)
                 right_hp_bar.config(style=right_style)
 
@@ -194,7 +224,7 @@ def update_gui(root, status_label, left_hp_bar, right_hp_bar, output_queue):
         pass  # No messages currently
 
     # Schedule the next check
-    root.after(100, update_gui, root, status_label, left_hp_bar, right_hp_bar, output_queue) # Check every 100ms
+    root.after(100, update_gui, root, status_label, left_hp_bar, right_hp_bar, output_queue, max_hp) # Check every 100ms
 
 
 def get_hp_color_style(current_hp, max_hp):
@@ -210,19 +240,43 @@ def get_hp_color_style(current_hp, max_hp):
         return "Red.Vertical.TProgressbar"
 
 
-def start_device_thread(output_queue, stop_event):
-    """ Finds the device and starts the processing thread. """
+def start_device_thread(output_queue, stop_event, settings=None):
+    """ 
+    Finds the device and starts the processing thread.
+    
+    Args:
+        settings: Dictionary with dynamic settings to pass to the processing function.
+    """
     def thread_target():
         vsm_device = find_vsm_device()
         if vsm_device:
-            process_vsm_data(vsm_device, output_queue, stop_event)
+            process_vsm_data(vsm_device, output_queue, stop_event, settings)
         else:
-            output_queue.put("VSM device not found.")
-            output_queue.put("Check connection/permissions.")
+            output_queue.put({'type': 'status', 'message': "VSM device not found."})
+            output_queue.put({'type': 'status', 'message': "Check connection/permissions."})
 
     thread = threading.Thread(target=thread_target, daemon=True)
     thread.start()
     return thread
+
+
+def restart_device_thread(output_queue, stop_event, current_thread, settings=None):
+    """
+    Stops the current device thread and starts a new one with updated settings.
+    
+    Args:
+        settings: Dictionary with dynamic settings to pass to the processing function.
+    """
+    # Stop the current thread if it's running
+    if current_thread:
+        stop_event.set()
+        current_thread.join(timeout=1.0)
+    
+    # Reset the stop event
+    stop_event.clear()
+    
+    # Start a new thread
+    return start_device_thread(output_queue, stop_event, settings)
 
 
 def main():
@@ -230,6 +284,15 @@ def main():
     root.title("Fencing Hit Detector")
     # root.geometry("800x250") # Removed fixed size
     root.attributes('-fullscreen', True) # Make fullscreen
+
+    # Initialize settings with default values
+    settings = {
+        'hit_dmg': GLOBAL_HIT_DMG,
+        'hit_dmg_self': GLOBAL_HIT_DMG_SELF,
+        'hit_dmg_per_ms': GLOBAL_HIT_DMG_PER_MILLISECOND,
+        'max_hp': LEFT_HP,
+        'debounce_time': DEBOUNCE_TIME
+    }
 
     # Configure styles for progress bars
     style = ttk.Style(root)
@@ -272,55 +335,88 @@ def main():
     label_font = tkFont.Font(family="Helvetica", size=18) # Increased font size
     status_font = tkFont.Font(family="Helvetica", size=16)
     hp_font = tkFont.Font(family="Helvetica", size=14, weight="bold")
+    entry_font = tkFont.Font(family="Helvetica", size=12)
+    button_font = tkFont.Font(family="Helvetica", size=12, weight="bold")
 
     # --- Layout using grid ---
     root.grid_columnconfigure(0, weight=1, uniform="group1") # Left HP bar column
-    root.grid_columnconfigure(1, weight=2, uniform="group1") # Status label column
-    root.grid_columnconfigure(2, weight=1, uniform="group1") # Right HP bar column
+    root.grid_columnconfigure(1, weight=1, uniform="group1") # Right HP bar column
     root.grid_rowconfigure(0, weight=0) # Labels row
-    root.grid_rowconfigure(1, weight=1) # Progress bars/Status row
+    root.grid_rowconfigure(1, weight=1) # Progress bars row
+    root.grid_rowconfigure(2, weight=0) # Debug/Status row
+    root.grid_rowconfigure(3, weight=0) # Settings row
 
     # --- Left Player Elements ---
-    left_label = tk.Label(root, text="LEFT PLAYER", font=label_font)
-    left_label.grid(row=0, column=0, pady=(20, 5)) # Increased padding
+    left_label = tk.Label(root, text="LEFT PLAYER", font=label_font, bg="blue", fg="white")
+    left_label.grid(row=0, column=0, pady=(20, 5), sticky="ew") # Increased padding
 
     left_hp_bar = ttk.Progressbar(
         root,
         orient="vertical",
-        length=500, # Increased height of the bar
+        length=600, # Increased height of the bar
         mode="determinate",
-        maximum=LEFT_HP,
-        value=LEFT_HP, # Start full
+        maximum=settings['max_hp'],
+        value=settings['max_hp'], # Start full
         style="Green.Vertical.TProgressbar" # Initial style
     )
-    left_hp_bar.grid(row=1, column=0, padx=50, pady=20, sticky="ns") # Increased padding
+    left_hp_bar.grid(row=1, column=0, padx=20, pady=20, sticky="ns") # Take up whole side
 
-    # --- Center Status Label ---
+    # --- Right Player Elements ---
+    right_label = tk.Label(root, text="RIGHT PLAYER", font=label_font, bg="red", fg="white")
+    right_label.grid(row=0, column=1, pady=(20, 5), sticky="ew") # Increased padding
+
+    right_hp_bar = ttk.Progressbar(
+        root,
+        orient="vertical",
+        length=600, # Increased height of the bar
+        mode="determinate",
+        maximum=settings['max_hp'],
+        value=settings['max_hp'], # Start full
+        style="Green.Vertical.TProgressbar" # Initial style
+    )
+    right_hp_bar.grid(row=1, column=1, padx=20, pady=20, sticky="ns") # Take up whole side
+
+    # --- Bottom Center Status Label (Debug info) ---
     status_label = tk.Label(
         root,
         text="Initializing...",
         font=status_font,
         justify=tk.CENTER,
         anchor=tk.CENTER,
-        wraplength=350 # Wrap text if it gets too long
+        wraplength=800 # Wrap text if it gets too long
     )
-    status_label.grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky="nsew")
+    status_label.grid(row=2, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
 
-    # --- Right Player Elements ---
-    right_label = tk.Label(root, text="RIGHT PLAYER", font=label_font)
-    right_label.grid(row=0, column=2, pady=(20, 5)) # Increased padding
-
-    right_hp_bar = ttk.Progressbar(
-        root,
-        orient="vertical",
-        length=500, # Increased height of the bar
-        mode="determinate",
-        maximum=RIGHT_HP,
-        value=RIGHT_HP, # Start full
-        style="Green.Vertical.TProgressbar" # Initial style
-    )
-    right_hp_bar.grid(row=1, column=2, padx=50, pady=20, sticky="ns") # Increased padding
-
+    # --- Settings Panel Frame ---
+    settings_frame = ttk.Frame(root, padding="10 10 10 10")
+    settings_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=10)
+    
+    # Create a settings panel with input fields
+    ttk.Label(settings_frame, text="Initial Hit Damage:", font=entry_font).grid(row=0, column=0, padx=5, pady=5, sticky="e")
+    hit_dmg_entry = ttk.Entry(settings_frame, width=8, font=entry_font)
+    hit_dmg_entry.insert(0, str(settings['hit_dmg']))
+    hit_dmg_entry.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+    
+    ttk.Label(settings_frame, text="Self Hit Damage:", font=entry_font).grid(row=0, column=2, padx=5, pady=5, sticky="e")
+    hit_dmg_self_entry = ttk.Entry(settings_frame, width=8, font=entry_font)
+    hit_dmg_self_entry.insert(0, str(settings['hit_dmg_self']))
+    hit_dmg_self_entry.grid(row=0, column=3, padx=5, pady=5, sticky="w")
+    
+    ttk.Label(settings_frame, text="Continuous Damage/ms:", font=entry_font).grid(row=1, column=0, padx=5, pady=5, sticky="e")
+    hit_dmg_per_ms_entry = ttk.Entry(settings_frame, width=8, font=entry_font)
+    hit_dmg_per_ms_entry.insert(0, str(settings['hit_dmg_per_ms']))
+    hit_dmg_per_ms_entry.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+    
+    ttk.Label(settings_frame, text="Starting HP:", font=entry_font).grid(row=1, column=2, padx=5, pady=5, sticky="e")
+    max_hp_entry = ttk.Entry(settings_frame, width=8, font=entry_font)
+    max_hp_entry.insert(0, str(settings['max_hp']))
+    max_hp_entry.grid(row=1, column=3, padx=5, pady=5, sticky="w")
+    
+    ttk.Label(settings_frame, text="Debounce Time (s):", font=entry_font).grid(row=2, column=0, padx=5, pady=5, sticky="e")
+    debounce_time_entry = ttk.Entry(settings_frame, width=8, font=entry_font)
+    debounce_time_entry.insert(0, str(settings['debounce_time']))
+    debounce_time_entry.grid(row=2, column=1, padx=5, pady=5, sticky="w")
+    
     # Queue for communication between threads
     output_queue = queue.Queue()
 
@@ -328,7 +424,43 @@ def main():
     stop_event = threading.Event()
 
     # Start the device monitoring thread
-    device_thread = start_device_thread(output_queue, stop_event)
+    device_thread = start_device_thread(output_queue, stop_event, settings)
+    
+    # Function to apply settings and reset game
+    def apply_settings_and_reset():
+        nonlocal device_thread
+        try:
+            new_settings = {
+                'hit_dmg': float(hit_dmg_entry.get()),
+                'hit_dmg_self': float(hit_dmg_self_entry.get()),
+                'hit_dmg_per_ms': float(hit_dmg_per_ms_entry.get()),
+                'max_hp': float(max_hp_entry.get()),
+                'debounce_time': float(debounce_time_entry.get())
+            }
+            
+            # Update progress bars to use new max HP
+            left_hp_bar['maximum'] = new_settings['max_hp']
+            right_hp_bar['maximum'] = new_settings['max_hp']
+            
+            # Reset HP to full
+            left_hp_bar['value'] = new_settings['max_hp']
+            right_hp_bar['value'] = new_settings['max_hp']
+            
+            # Restart the device thread with new settings
+            device_thread = restart_device_thread(output_queue, stop_event, device_thread, new_settings)
+            
+            # Update status
+            output_queue.put({'type': 'status', 'message': "Game reset with new settings!"})
+            
+        except ValueError:
+            output_queue.put({'type': 'status', 'message': "Error: Invalid input values."})
+    
+    # Add Apply/Reset button
+    reset_button = ttk.Button(settings_frame, text="APPLY & RESET", command=apply_settings_and_reset, style="Accent.TButton")
+    reset_button.grid(row=2, column=2, columnspan=2, padx=20, pady=5, sticky="ew")
+    
+    # Configure button style
+    style.configure("Accent.TButton", font=button_font)
 
     # Function to handle window closing
     def on_closing():
@@ -341,7 +473,7 @@ def main():
     root.protocol("WM_DELETE_WINDOW", on_closing)
 
     # Start the GUI update loop, passing the necessary widgets
-    update_gui(root, status_label, left_hp_bar, right_hp_bar, output_queue)
+    update_gui(root, status_label, left_hp_bar, right_hp_bar, output_queue, settings['max_hp'])
 
     # Start the Tkinter main loop
     root.mainloop()
