@@ -1,10 +1,11 @@
 import tkinter as tk
 from tkinter import ttk, font as tkFont
 from threading import Thread, Event
-from datetime import datetime
+from datetime import datetime, timedelta
 import queue
+from scorer.player import ScoringManager # Import the new class
 from scorer.settings import (
-    GLOBAL_HIT_DMG,
+    GLOBAL_HIT_DMG, # Keep defaults for initial settings dict
     GLOBAL_HIT_DMG_SELF,
     GLOBAL_HIT_DMG_PER_MILLISECOND,
     MAX_HP,
@@ -42,6 +43,9 @@ class FencingGui:
             'max_hp': MAX_HP,
             'debounce_time': DEBOUNCE_TIME
         }
+        # Instantiate the ScoringManager
+        self.scoring_manager = ScoringManager(self.settings)
+
         self.device_thread = self.start_device_thread()
 
         self._configure_styles()
@@ -214,12 +218,16 @@ class FencingGui:
             self.left_hp_bar['maximum'] = new_settings['max_hp']
             self.right_hp_bar['maximum'] = new_settings['max_hp']
 
-            # Reset HP to full
-            self.left_hp_bar['value'] = new_settings['max_hp']
-            self.right_hp_bar['value'] = new_settings['max_hp']
+            # Update settings in ScoringManager and reset HP
+            self.scoring_manager.update_settings(new_settings)
+            self.scoring_manager.reset()
 
-            # Restart the device thread with new settings
+            # Restart the device thread (it will use the updated self.scoring_manager)
             self.device_thread = self.restart_device_thread(self.device_thread)
+
+            # Trigger an immediate HP update in the GUI based on the reset state
+            left_hp, right_hp = self.scoring_manager.get_hp()
+            self.output_queue.put({'type': 'health', 'left': left_hp, 'right': right_hp})
 
             # Update status
             self.output_queue.put({'type': 'status', 'message': "Game reset with new settings!"})
@@ -266,33 +274,30 @@ class FencingGui:
         """
         Reads data from the VSM device, detects state changes, applies debouncing,
         and puts formatted messages into the output queue.
-        Runs until stop_event is set.
+        Reads data from the VSM device, detects state changes, applies debouncing,
+        delegates scoring logic to ScoringManager, and puts formatted messages
+        into the output queue. Runs until stop_event is set.
         """
-        # Use provided settings or fallback to global defaults
-        hit_dmg = self.settings.get('hit_dmg', GLOBAL_HIT_DMG) if self.settings else GLOBAL_HIT_DMG
-        hit_dmg_self = self.settings.get('hit_dmg_self', GLOBAL_HIT_DMG_SELF) if self.settings else GLOBAL_HIT_DMG_SELF
-        hit_dmg_per_ms = self.settings.get('hit_dmg_per_ms', GLOBAL_HIT_DMG_PER_MILLISECOND) if self.settings else GLOBAL_HIT_DMG_PER_MILLISECOND
-
-        max_hp = self.settings.get('max_hp', MAX_HP) if self.settings else MAX_HP
-        left_hp = max_hp
-        right_hp = max_hp
-
+        # Settings are now managed by self.scoring_manager
         last_reported_state = None
         time_last_reported = None
-        debounce_time = self.settings.get('debounce_time', DEBOUNCE_TIME) if self.settings else DEBOUNCE_TIME
+        # Get debounce time from the manager's settings
+        debounce_time = self.scoring_manager.settings.get('debounce_time', DEBOUNCE_TIME)
         start_time = datetime.now()
-        last_loop_time = start_time  # Track time for delta calculation
+        last_loop_time = start_time # Track time for delta calculation
 
-        # Initial status and health update
+        # Initial status and health update using ScoringManager
         self.output_queue.put({'type': 'status', 'message': "Monitoring fencing hits..."})
         self.output_queue.put({'type': 'status', 'message': "-" * 30})
-        self.output_queue.put({'type': 'health', 'left': left_hp, 'right': right_hp})
+        initial_left_hp, initial_right_hp = self.scoring_manager.get_hp()
+        self.output_queue.put({'type': 'health', 'left': initial_left_hp, 'right': initial_right_hp})
 
         try:
             while not self.stop_event.is_set():
                 current_time = datetime.now()
-                time_delta = current_time - last_loop_time
-                hp_changed = False
+                time_delta: timedelta = current_time - last_loop_time
+                hp_changed_continuous = False
+                hp_changed_one_time = False
 
                 # Read data from the device (with a short timeout to allow checking stop_event)
                 data = device.read(42, timeout_ms=100)
@@ -304,73 +309,49 @@ class FencingGui:
                 if data:
                     current_state = self.detect_hit_state(data)
 
-                    # --- Continuous Damage Calculation (based on the state *during* the time delta) ---
-                    damage_increment = time_delta.total_seconds() * 1000 * hit_dmg_per_ms
+                    # --- Delegate Continuous Damage Calculation ---
+                    # Apply based on the state *during* the time delta (last_reported_state)
+                    if last_reported_state: # Don't apply continuous damage before first state is known
+                         hp_changed_continuous = self.scoring_manager.apply_continuous_damage(
+                             last_reported_state, time_delta
+                         )
 
-                    # Apply continuous damage if a player *was* being hit in the last state
-                    if last_reported_state == "LEFT_GOT_HIT" or last_reported_state == "BOTH_HITTING":
-                        if right_hp > 0:
-                            right_hp = max(0, right_hp - damage_increment)
-                            hp_changed = True
-                    if last_reported_state == "RIGHT_GOT_HIT" or last_reported_state == "BOTH_HITTING":
-                        if left_hp > 0:
-                            left_hp = max(0, left_hp - damage_increment)
-                            hp_changed = True
-
-                    # --- State Change Reporting & One-Time Damage ---
+                    # --- State Change Reporting & Delegate One-Time Damage ---
                     if current_state != last_reported_state:
-                        # Check debounce time only if it's not the very first state change
+                        # Check debounce time
                         if time_last_reported is None or \
                            (current_time - time_last_reported).total_seconds() > debounce_time:
 
                             elapsed = (current_time - start_time).total_seconds()
+                            elapsed = (current_time - start_time).total_seconds()
                             status_message = f"[{elapsed:.2f}s] {current_state}"
                             self.output_queue.put({'type': 'status', 'message': status_message})
 
-                            # Apply one-time damage based on the *new* state, handling transitions carefully
+                            # Add specific score messages based on state
                             if current_state == "LEFT_GOT_HIT":
                                 self.output_queue.put({'type': 'status', 'message': f"*** SCORE: LEFT PLAYER HIT ***"})
-                                # Apply initial hit damage to Right player
-                                if right_hp > 0:
-                                    right_hp = max(0, right_hp - hit_dmg)  # Damage Right
-                                    hp_changed = True
                             elif current_state == "RIGHT_GOT_HIT":
                                 self.output_queue.put({'type': 'status', 'message': f"*** SCORE: RIGHT PLAYER HIT ***"})
-                                # Apply initial hit damage to Left player
-                                if left_hp > 0:
-                                    left_hp = max(0, left_hp - hit_dmg)  # Damage Left
-                                    hp_changed = True
                             elif current_state == "LEFT_HIT_SELF":
                                 self.output_queue.put({'type': 'status', 'message': f"*** SCORE: LEFT SELF-HIT ***"})
-                                if left_hp > 0:
-                                    left_hp = max(0, left_hp - hit_dmg_self)  # Damage Left
-                                    hp_changed = True
                             elif current_state == "RIGHT_SELF_HIT":
                                 self.output_queue.put({'type': 'status', 'message': f"*** SCORE: RIGHT SELF-HIT ***"})
-                                if right_hp > 0:
-                                    right_hp = max(0, right_hp - hit_dmg_self)  # Damage Right
-                                    hp_changed = True
                             elif current_state == "BOTH_HITTING":
                                 self.output_queue.put({'type': 'status', 'message': f"*** SCORE: BOTH HIT ***"})
-                                # Apply damage selectively based on the previous state
-                                # If transitioning from a single hit, only damage the player who just scored.
-                                # Otherwise (e.g., from NEUTRAL), damage both.
-                                if last_reported_state != "RIGHT_GOT_HIT":  # Left player scored (or both scored simultaneously)
-                                    if left_hp > 0:
-                                        left_hp = max(0, left_hp - hit_dmg)
-                                        hp_changed = True
-                                if last_reported_state != "LEFT_GOT_HIT":  # Right player scored (or both scored simultaneously)
-                                    if right_hp > 0:
-                                        right_hp = max(0, right_hp - hit_dmg)
-                                        hp_changed = True
+
+                            # Delegate one-time damage application
+                            hp_changed_one_time = self.scoring_manager.apply_one_time_damage(
+                                current_state, last_reported_state
+                            )
 
                             # Update reported state *after* handling the change
                             last_reported_state = current_state
                             time_last_reported = current_time
 
-                # --- Send HP Update if it Changed this Iteration ---
-                if hp_changed:
-                    self.output_queue.put({'type': 'health', 'left': left_hp, 'right': right_hp})
+                # --- Send HP Update if it Changed this Iteration (either continuous or one-time) ---
+                if hp_changed_continuous or hp_changed_one_time:
+                    current_left_hp, current_right_hp = self.scoring_manager.get_hp()
+                    self.output_queue.put({'type': 'health', 'left': current_left_hp, 'right': current_right_hp})
 
                 # Update last loop time for next iteration's delta calculation
                 last_loop_time = current_time
