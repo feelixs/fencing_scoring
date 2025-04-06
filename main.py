@@ -1,5 +1,4 @@
 import hid
-import tkinter as tk
 from scorer.gui import FencingGui
 
 # diff colors for each player? -> take up the whole side of the screen
@@ -29,10 +28,7 @@ def find_vsm_device():
 
 
 def main():
-    root = tk.Tk()
-    root.title("Fencing Hit Detector")
-    root.attributes('-fullscreen', True)  # Make fullscreen
-    gui = FencingGui(root, find_vsm_device)
+    gui = FencingGui(find_vsm_device)
 
     # Start the GUI update loop & Tkinter main loop
     gui.update_gui()

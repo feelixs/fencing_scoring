@@ -13,15 +13,18 @@ from scorer.settings import (
 
 
 class FencingGui:
-    def __init__(self, root, find_device):
+    def __init__(self, find_device):
         self._bar_thickness = 120  # health bar thickness
 
         # Queue for communication between threads
         self.output_queue = queue.Queue()
         self.stop_event = Event()
-        self.root = root
+
+        self.root = tk.Tk()
+        self.root.title("Fencing Hit Detector")
+        self.root.attributes('-fullscreen', True)
         self.find_device = find_device
-        self.style = ttk.Style(root)
+        self.style = ttk.Style(self.root)
 
         # Configure fonts
         self._label_font = tkFont.Font(family="Helvetica", size=18)  # Increased font size
