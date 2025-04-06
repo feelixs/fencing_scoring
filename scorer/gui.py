@@ -332,34 +332,34 @@ class FencingGui:
                                 self.output_queue.put({'type': 'status', 'message': f"*** SCORE: LEFT PLAYER HIT ***"})
                                 # Apply initial hit damage to Right player
                                 if right_hp > 0:
-                                    right_hp = max(0, right_hp - hit_dmg) # Damage Right
+                                    right_hp = max(0, right_hp - hit_dmg)  # Damage Right
                                     hp_changed = True
                             elif current_state == "RIGHT_GOT_HIT":
                                 self.output_queue.put({'type': 'status', 'message': f"*** SCORE: RIGHT PLAYER HIT ***"})
                                 # Apply initial hit damage to Left player
                                 if left_hp > 0:
-                                    left_hp = max(0, left_hp - hit_dmg) # Damage Left
+                                    left_hp = max(0, left_hp - hit_dmg)  # Damage Left
                                     hp_changed = True
                             elif current_state == "LEFT_HIT_SELF":
                                 self.output_queue.put({'type': 'status', 'message': f"*** SCORE: LEFT SELF-HIT ***"})
                                 if left_hp > 0:
-                                    left_hp = max(0, left_hp - hit_dmg_self) # Damage Left
+                                    left_hp = max(0, left_hp - hit_dmg_self)  # Damage Left
                                     hp_changed = True
                             elif current_state == "RIGHT_SELF_HIT":
                                 self.output_queue.put({'type': 'status', 'message': f"*** SCORE: RIGHT SELF-HIT ***"})
                                 if right_hp > 0:
-                                    right_hp = max(0, right_hp - hit_dmg_self) # Damage Right
+                                    right_hp = max(0, right_hp - hit_dmg_self)  # Damage Right
                                     hp_changed = True
                             elif current_state == "BOTH_HITTING":
                                 self.output_queue.put({'type': 'status', 'message': f"*** SCORE: BOTH HIT ***"})
                                 # Apply damage selectively based on the previous state
                                 # If transitioning from a single hit, only damage the player who just scored.
                                 # Otherwise (e.g., from NEUTRAL), damage both.
-                                if last_reported_state != "RIGHT_GOT_HIT": # Left player scored (or both scored simultaneously)
+                                if last_reported_state != "RIGHT_GOT_HIT":  # Left player scored (or both scored simultaneously)
                                     if left_hp > 0:
                                         left_hp = max(0, left_hp - hit_dmg)
                                         hp_changed = True
-                                if last_reported_state != "LEFT_GOT_HIT": # Right player scored (or both scored simultaneously)
+                                if last_reported_state != "LEFT_GOT_HIT":  # Right player scored (or both scored simultaneously)
                                     if right_hp > 0:
                                         right_hp = max(0, right_hp - hit_dmg)
                                         hp_changed = True
