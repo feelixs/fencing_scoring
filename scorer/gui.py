@@ -304,62 +304,65 @@ class FencingGui:
                 if data:
                     current_state = self.detect_hit_state(data)
 
-                    # --- Continuous Damage Calculation (Opponent Hits) ---
+                    # --- Continuous Damage Calculation (based on the state *during* the time delta) ---
                     damage_increment = time_delta.total_seconds() * 1000 * hit_dmg_per_ms
 
-                    if current_state == "LEFT_GOT_HIT" or current_state == "BOTH_HITTING":
+                    # Apply continuous damage if a player *was* being hit in the last state
+                    if last_reported_state == "LEFT_GOT_HIT" or last_reported_state == "BOTH_HITTING":
                         if right_hp > 0:
                             right_hp = max(0, right_hp - damage_increment)
                             hp_changed = True
-
-                    if current_state == "RIGHT_GOT_HIT" or current_state == "BOTH_HITTING":
+                    if last_reported_state == "RIGHT_GOT_HIT" or last_reported_state == "BOTH_HITTING":
                         if left_hp > 0:
                             left_hp = max(0, left_hp - damage_increment)
                             hp_changed = True
 
-                    # --- State Change Reporting & One-Time Damage (Self-Hits) ---
+                    # --- State Change Reporting & One-Time Damage ---
                     if current_state != last_reported_state:
+                        # Check debounce time only if it's not the very first state change
                         if time_last_reported is None or \
-                                (current_time - time_last_reported).total_seconds() > debounce_time:
+                           (current_time - time_last_reported).total_seconds() > debounce_time:
 
                             elapsed = (current_time - start_time).total_seconds()
                             status_message = f"[{elapsed:.2f}s] {current_state}"
                             self.output_queue.put({'type': 'status', 'message': status_message})
 
-                            # Apply one-time damage for initial hits and self-hits
-                            # Handle BOTH_HITTING as a special case
-                            if current_state == "BOTH_HITTING":
-                                self.output_queue.put({'type': 'status', 'message': f"*** SCORE: BOTH HIT ***"})
-                                # Apply damage to both players
-                                if right_hp > 0:
-                                    right_hp = max(0, right_hp - hit_dmg)
-                                    hp_changed = True
-                                if left_hp > 0:
-                                    left_hp = max(0, left_hp - hit_dmg)
-                                    hp_changed = True
-                            # Handle individual hits
-                            elif current_state == "LEFT_GOT_HIT":
+                            # Apply one-time damage based on the *new* state, handling transitions carefully
+                            if current_state == "LEFT_GOT_HIT":
                                 self.output_queue.put({'type': 'status', 'message': f"*** SCORE: LEFT PLAYER HIT ***"})
-                                # Apply initial hit damage
+                                # Apply initial hit damage to Right player
                                 if right_hp > 0:
-                                    right_hp = max(0, right_hp - hit_dmg)
+                                    right_hp = max(0, right_hp - hit_dmg) # Damage Right
                                     hp_changed = True
                             elif current_state == "RIGHT_GOT_HIT":
                                 self.output_queue.put({'type': 'status', 'message': f"*** SCORE: RIGHT PLAYER HIT ***"})
-                                # Apply initial hit damage
+                                # Apply initial hit damage to Left player
                                 if left_hp > 0:
-                                    left_hp = max(0, left_hp - hit_dmg)
+                                    left_hp = max(0, left_hp - hit_dmg) # Damage Left
                                     hp_changed = True
                             elif current_state == "LEFT_HIT_SELF":
                                 self.output_queue.put({'type': 'status', 'message': f"*** SCORE: LEFT SELF-HIT ***"})
                                 if left_hp > 0:
-                                    left_hp = max(0, left_hp - hit_dmg_self)
-                                    hp_changed = True  # Mark HP changed for update below
+                                    left_hp = max(0, left_hp - hit_dmg_self) # Damage Left
+                                    hp_changed = True
                             elif current_state == "RIGHT_SELF_HIT":
                                 self.output_queue.put({'type': 'status', 'message': f"*** SCORE: RIGHT SELF-HIT ***"})
                                 if right_hp > 0:
-                                    right_hp = max(0, right_hp - hit_dmg_self)
-                                    hp_changed = True  # Mark HP changed for update below
+                                    right_hp = max(0, right_hp - hit_dmg_self) # Damage Right
+                                    hp_changed = True
+                            elif current_state == "BOTH_HITTING":
+                                self.output_queue.put({'type': 'status', 'message': f"*** SCORE: BOTH HIT ***"})
+                                # Apply damage selectively based on the previous state
+                                # If transitioning from a single hit, only damage the player who just scored.
+                                # Otherwise (e.g., from NEUTRAL), damage both.
+                                if last_reported_state != "RIGHT_GOT_HIT": # Left player scored (or both scored simultaneously)
+                                    if left_hp > 0:
+                                        left_hp = max(0, left_hp - hit_dmg)
+                                        hp_changed = True
+                                if last_reported_state != "LEFT_GOT_HIT": # Right player scored (or both scored simultaneously)
+                                    if right_hp > 0:
+                                        right_hp = max(0, right_hp - hit_dmg)
+                                        hp_changed = True
 
                             # Update reported state *after* handling the change
                             last_reported_state = current_state
