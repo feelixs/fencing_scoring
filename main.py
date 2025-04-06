@@ -1,5 +1,6 @@
 import hid
 import tkinter as tk
+from scorer.gui import FencingGui
 
 # diff colors for each player? -> take up the whole side of the screen
 # move debugging to bottom center
@@ -28,7 +29,6 @@ def find_vsm_device():
 
 
 def main():
-    from gui.gui import FencingGui
     root = tk.Tk()
     root.title("Fencing Hit Detector")
     root.attributes('-fullscreen', True)  # Make fullscreen
