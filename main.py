@@ -53,9 +53,6 @@ def detect_hit_state(data):
     return hit_states.get(signature, "UNKNOWN")
 
 
-def main():
-    gui = FencingGui(find_vsm_device, detect_hit_state)
-
-
 if __name__ == "__main__":
-    main()
+    gui = FencingGui(find_vsm_device, detect_hit_state)
+    gui.run()

@@ -132,9 +132,8 @@ class FencingGui:
 
         self._setup_labels()
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-        self._start()
 
-    def _start(self):
+    def run(self):
         # Start the GUI update loop & Tkinter main loop
         self.update_gui()
         self.root.mainloop()
