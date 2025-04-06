@@ -27,8 +27,34 @@ def find_vsm_device():
         return None
 
 
+def detect_hit_state(data):
+    # Skip the first 2 bytes (counter and report ID)
+    if len(data) < 5:  # Need at least counter, report ID, and one data pair
+        return "UNKNOWN"
+
+    # Extract key signature bytes - using 3rd and 4th bytes as signature
+    # The pattern repeats, so we check the first instance
+    signature = (data[2], data[3])
+
+    # Match the signature with known patterns
+    hit_states = {
+        (4, 80): "NEUTRAL",
+        (4, 114): "RIGHT_GOT_HIT",
+        (44, 80): "LEFT_GOT_HIT",
+        (38, 80): "LEFT_HIT_SELF",
+        (4, 120): "RIGHT_SELF_HIT",
+        (20, 84): "WEAPONS_HIT",
+        (0, 64): "BOTH_DISCONNECTED",
+        (0, 80): "LEFT_DISCONNECTED",
+        (4, 64): "RIGHT_DISCONNECTED",
+        (44, 114): "BOTH_HITTING"
+    }
+
+    return hit_states.get(signature, "UNKNOWN")
+
+
 def main():
-    gui = FencingGui(find_vsm_device)
+    gui = FencingGui(find_vsm_device, detect_hit_state)
 
     # Start the GUI update loop & Tkinter main loop
     gui.update_gui()

@@ -13,7 +13,7 @@ from scorer.settings import (
 
 
 class FencingGui:
-    def __init__(self, find_device):
+    def __init__(self, find_device, detect_hit_state):
         self._bar_thickness = 120  # health bar thickness
 
         # Queue for communication between threads
@@ -23,7 +23,10 @@ class FencingGui:
         self.root = tk.Tk()
         self.root.title("Fencing Hit Detector")
         self.root.attributes('-fullscreen', True)
+
         self.find_device = find_device
+        self.detect_hit_state = detect_hit_state
+
         self.style = ttk.Style(self.root)
 
         # Configure fonts
@@ -129,32 +132,6 @@ class FencingGui:
 
         self._setup_labels()
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-
-    @staticmethod
-    def detect_hit_state(data):
-        # Skip the first 2 bytes (counter and report ID)
-        if len(data) < 5:  # Need at least counter, report ID, and one data pair
-            return "UNKNOWN"
-
-        # Extract key signature bytes - using 3rd and 4th bytes as signature
-        # The pattern repeats, so we check the first instance
-        signature = (data[2], data[3])
-
-        # Match the signature with known patterns
-        hit_states = {
-            (4, 80): "NEUTRAL",
-            (4, 114): "RIGHT_GOT_HIT",
-            (44, 80): "LEFT_GOT_HIT",
-            (38, 80): "LEFT_HIT_SELF",
-            (4, 120): "RIGHT_SELF_HIT",
-            (20, 84): "WEAPONS_HIT",
-            (0, 64): "BOTH_DISCONNECTED",
-            (0, 80): "LEFT_DISCONNECTED",
-            (4, 64): "RIGHT_DISCONNECTED",
-            (44, 114): "BOTH_HITTING"
-        }
-
-        return hit_states.get(signature, "UNKNOWN")
 
     def _configure_styles(self):
         # Define styles for the progress bars
