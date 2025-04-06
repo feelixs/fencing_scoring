@@ -1,17 +1,5 @@
 import hid
-from datetime import datetime
 import tkinter as tk
-from tkinter import ttk
-import threading
-
-
-from scorer.settings import (
-    GLOBAL_HIT_DMG,
-    GLOBAL_HIT_DMG_SELF,
-    GLOBAL_HIT_DMG_PER_MILLISECOND,
-    MAX_HP,
-    DEBOUNCE_TIME,
-)
 
 # diff colors for each player? -> take up the whole side of the screen
 # move debugging to bottom center
