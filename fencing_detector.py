@@ -18,8 +18,8 @@ GLOBAL_HIT_DMG_SELF = GLOBAL_HIT_DMG
 
 GLOBAL_HIT_DMG_PER_MILLISECOND = 3 / 40  # 3 points per 40ms
 
-RIGHT_HP = 250
-LEFT_HP = 250
+MAX_HP = 250
+RIGHT_HP, LEFT_HP = MAX_HP, MAX_HP
 
 DEBOUNCE_TIME = 0.03
 
@@ -45,7 +45,7 @@ def find_vsm_device():
 def detect_hit_state(data):
     # Skip the first 2 bytes (counter and report ID)
     if len(data) < 5:  # Need at least counter, report ID, and one data pair
-        return "Unknown"
+        return "UNKNOWN"
 
     # Extract key signature bytes - using 3rd and 4th bytes as signature
     # The pattern repeats, so we check the first instance
@@ -81,11 +81,9 @@ def process_vsm_data(device, output_queue, stop_event, settings=None):
     # Use provided settings or fallback to global defaults
     hit_dmg = settings.get('hit_dmg', GLOBAL_HIT_DMG) if settings else GLOBAL_HIT_DMG
     hit_dmg_self = settings.get('hit_dmg_self', GLOBAL_HIT_DMG_SELF) if settings else GLOBAL_HIT_DMG_SELF
-    hit_dmg_per_ms = settings.get('hit_dmg_per_ms',
-                                  GLOBAL_HIT_DMG_PER_MILLISECOND) if settings else GLOBAL_HIT_DMG_PER_MILLISECOND
-    max_hp = settings.get('max_hp', LEFT_HP) if settings else LEFT_HP
+    hit_dmg_per_ms = settings.get('hit_dmg_per_ms', GLOBAL_HIT_DMG_PER_MILLISECOND) if settings else GLOBAL_HIT_DMG_PER_MILLISECOND
 
-    # Initialize health points
+    max_hp = settings.get('max_hp', MAX_HP) if settings else MAX_HP
     left_hp = max_hp
     right_hp = max_hp
 
@@ -107,9 +105,10 @@ def process_vsm_data(device, output_queue, stop_event, settings=None):
             hp_changed = False
 
             # Read data from the device (with a short timeout to allow checking stop_event)
-            data = device.read(42, timeout_ms=100)  # Reduced timeout
+            data = device.read(42, timeout_ms=100)
 
-            if stop_event.is_set():  # Check again after potential blocking read
+            if stop_event.is_set():
+                # double check after potential blocking read
                 break
 
             if data:
