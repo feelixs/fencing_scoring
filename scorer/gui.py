@@ -271,10 +271,9 @@ class FencingGui:
         delegates scoring logic to ScoringManager, and puts formatted messages
         into the output queue. Runs until stop_event is set.
         """
-        # Settings are now managed by self.scoring_manager
-        last_reported_state = None
-        time_last_reported = datetime.now()  # Initialize to current time
-        # Get debounce time from the manager's settings
+        # Settings are managed by self.scoring_manager
+        last_reported_state = None # Will store state tuples (left_status, right_status)
+        time_last_reported = None # Initialize to None, set on first valid state
         debounce_time = self.scoring_manager.settings.get('debounce_time', DEBOUNCE_TIME)
         start_time = datetime.now()
         last_loop_time = start_time # Track time for delta calculation
@@ -300,37 +299,56 @@ class FencingGui:
                     break
 
                 if data:
-                    current_state = self.detect_hit_state(data)
+                    current_state_tuple = self.detect_hit_state(data)
 
                     # --- Delegate Continuous Damage Calculation ---
-                    # Apply based on the state *during* the time delta (last_reported_state)
-                    if last_reported_state:  # Don't apply continuous damage before first state is known
+                    # Apply based on the state *during* the time delta (last_reported_state tuple)
+                    # Requires last_reported_state to be known
+                    if last_reported_state:
                         hp_changed_continuous = self.scoring_manager.apply_continuous_damage(
-                            state=last_reported_state,
+                            last_state_tuple=last_reported_state,
                             time_delta=time_delta
                         )
 
                     # --- State Change Reporting & Delegate One-Time Damage ---
-                    if current_state != last_reported_state:
-                        within_debounce = (current_time - time_last_reported).total_seconds() <= debounce_time
-                        if not within_debounce or time_last_reported is None:
+                    if current_state_tuple != last_reported_state:
+                        # Debounce check: only process change if enough time has passed since the *last processed* change
+                        if time_last_reported is None or \
+                           (current_time - time_last_reported).total_seconds() > debounce_time:
+
                             elapsed = (current_time - start_time).total_seconds()
-                            status_message = f"[{elapsed:.2f}s] {current_state}"
+                            left_status, right_status = current_state_tuple
+                            status_message = f"[{elapsed:.2f}s] L: {left_status}, R: {right_status}"
                             self.output_queue.put({'type': 'status', 'message': status_message})
 
-                            # Add specific score messages based on state
-                            score_message = self.scoring_manager.get_score_message(current_state)
-                            self.output_queue.put({'type': 'status', 'message': score_message})
+                            # Determine score messages based on transitions *before* applying damage
+                            last_left, last_right = last_reported_state if last_reported_state else (None, None)
+                            current_left, current_right = current_state_tuple
 
-                            # Delegate one-time damage application
+                            score_messages = []
+                            # Check for transitions that indicate a score
+                            if current_left == "HITTING_OPPONENT" and last_left != "HITTING_OPPONENT":
+                                score_messages.append("*** SCORE: LEFT PLAYER HIT ***")
+                            if current_right == "HITTING_OPPONENT" and last_right != "HITTING_OPPONENT":
+                                score_messages.append("*** SCORE: RIGHT PLAYER HIT ***")
+                            if current_left == "HITTING_SELF" and last_left != "HITTING_SELF":
+                                score_messages.append("*** SCORE: LEFT SELF-HIT ***")
+                            if current_right == "HITTING_SELF" and last_right != "HITTING_SELF":
+                                score_messages.append("*** SCORE: RIGHT SELF-HIT ***")
+                            # Add messages for disconnects/reconnects? Maybe later.
+
+                            for msg in score_messages:
+                                self.output_queue.put({'type': 'status', 'message': msg})
+
+                            # Delegate one-time damage application using tuples
                             hp_changed_one_time = self.scoring_manager.apply_one_time_damage(
-                                last_reported_state=last_reported_state,
-                                current_state=current_state
+                                last_state_tuple=last_reported_state,
+                                current_state_tuple=current_state_tuple
                             )
 
                             # Update reported state *after* handling the change
-                            last_reported_state = current_state
-                            time_last_reported = current_time
+                            last_reported_state = current_state_tuple
+                            time_last_reported = current_time # Update time of last processed change
 
                 # --- Send HP Update if it Changed this Iteration (either continuous or one-time) ---
                 if hp_changed_continuous or hp_changed_one_time:

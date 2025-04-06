@@ -27,30 +27,59 @@ def find_vsm_device():
         return None
 
 
+# Status constants for clarity
+STATUS_NORMAL = "NORMAL"
+STATUS_HITTING_OPPONENT = "HITTING_OPPONENT"
+STATUS_HITTING_SELF = "HITTING_SELF"
+STATUS_DISCONNECTED = "DISCONNECTED"
+STATUS_WEAPONS_HIT = "WEAPONS_HIT" # Special case?
+STATUS_UNKNOWN = "UNKNOWN"
+
 def detect_hit_state(data):
-    # Skip the first 2 bytes (counter and report ID)
-    if len(data) < 5:  # Need at least counter, report ID, and one data pair
-        return "UNKNOWN"
+    """
+    Detects the independent state of each player based on signature bytes.
+    Returns a tuple: (left_player_status, right_player_status)
+    """
+    if len(data) < 4: # Need at least counter, report ID, byte 2, byte 3
+        return (STATUS_UNKNOWN, STATUS_UNKNOWN)
 
-    # Extract key signature bytes - using 3rd and 4th bytes as signature
-    # The pattern repeats, so we check the first instance
-    signature = (data[2], data[3])
+    byte2 = data[2]
+    byte3 = data[3]
 
-    # Match the signature with known patterns
-    hit_states = {
-        (4, 80): "NEUTRAL",
-        (4, 114): "RIGHT_GOT_HIT",
-        (44, 80): "LEFT_GOT_HIT",
-        (38, 80): "LEFT_HIT_SELF",
-        (4, 120): "RIGHT_SELF_HIT",
-        (20, 84): "WEAPONS_HIT",
-        (0, 64): "BOTH_DISCONNECTED",
-        (0, 80): "LEFT_DISCONNECTED",
-        (4, 64): "RIGHT_DISCONNECTED",
-        (44, 114): "BOTH_HITTING"
-    }
+    # --- Left Player Status (based on byte 2) ---
+    if byte2 == 4:
+        left_status = STATUS_NORMAL
+    elif byte2 == 44:
+        left_status = STATUS_HITTING_OPPONENT
+    elif byte2 == 38:
+        left_status = STATUS_HITTING_SELF
+    elif byte2 == 0:
+        left_status = STATUS_DISCONNECTED
+    elif byte2 == 20: # Part of WEAPONS_HIT
+        left_status = STATUS_WEAPONS_HIT # Or treat as NORMAL? Needs testing.
+    else:
+        left_status = STATUS_UNKNOWN
 
-    return hit_states.get(signature, "UNKNOWN")
+    # --- Right Player Status (based on byte 3) ---
+    if byte3 == 80:
+        right_status = STATUS_NORMAL
+    elif byte3 == 114:
+        right_status = STATUS_HITTING_OPPONENT
+    elif byte3 == 120:
+        right_status = STATUS_HITTING_SELF
+    elif byte3 == 64:
+        right_status = STATUS_DISCONNECTED
+    elif byte3 == 84: # Part of WEAPONS_HIT
+        right_status = STATUS_WEAPONS_HIT # Or treat as NORMAL? Needs testing.
+    else:
+        right_status = STATUS_UNKNOWN
+
+    # Handle the specific WEAPONS_HIT combination if needed, otherwise return individual statuses
+    # For now, returning individual statuses seems more flexible.
+    # If byte2 == 20 and byte3 == 84:
+    #    return (STATUS_WEAPONS_HIT, STATUS_WEAPONS_HIT) # Or specific handling?
+
+    return (left_status, right_status)
 
 
 if __name__ == "__main__":
