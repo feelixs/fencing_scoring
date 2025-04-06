@@ -3,9 +3,9 @@ from tkinter import ttk, font as tkFont
 from threading import Thread, Event
 from datetime import datetime, timedelta
 import queue
-from scorer.player import ScoringManager # Import the new class
+from scorer.player import ScoringManager
 from scorer.settings import (
-    GLOBAL_HIT_DMG, # Keep defaults for initial settings dict
+    GLOBAL_HIT_DMG,
     GLOBAL_HIT_DMG_SELF,
     GLOBAL_HIT_DMG_PER_MILLISECOND,
     MAX_HP,
@@ -95,7 +95,7 @@ class FencingGui:
             font=self._status_font,
             justify=tk.CENTER,
             anchor=tk.CENTER,
-            wraplength=800  # Wrap text if it gets too long
+            wraplength=800
         )
         self.status_label.grid(row=2, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
 
