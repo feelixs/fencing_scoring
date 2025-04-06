@@ -311,10 +311,10 @@ class FencingGui:
 
                     # --- Delegate Continuous Damage Calculation ---
                     # Apply based on the state *during* the time delta (last_reported_state)
-                    if last_reported_state: # Don't apply continuous damage before first state is known
-                         hp_changed_continuous = self.scoring_manager.apply_continuous_damage(
-                             last_reported_state, time_delta
-                         )
+                    if last_reported_state:  # Don't apply continuous damage before first state is known
+                        hp_changed_continuous = self.scoring_manager.apply_continuous_damage(
+                            last_reported_state, time_delta
+                        )
 
                     # --- State Change Reporting & Delegate One-Time Damage ---
                     if current_state != last_reported_state:
