@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+
 class ScoringManager:
     """Manages player HP and applies damage based on game rules."""
 
@@ -7,6 +8,20 @@ class ScoringManager:
         self.settings = settings
         self.left_hp = self.settings['max_hp']
         self.right_hp = self.settings['max_hp']
+
+    @staticmethod
+    def get_score_message(current_state: str) -> str:
+        if current_state == "LEFT_GOT_HIT":
+            return "*** SCORE: LEFT PLAYER HIT ***"
+        elif current_state == "RIGHT_GOT_HIT":
+            return "*** SCORE: RIGHT PLAYER HIT ***"
+        elif current_state == "LEFT_HIT_SELF":
+            return "*** SCORE: LEFT SELF-HIT ***"
+        elif current_state == "RIGHT_SELF_HIT":
+            return "*** SCORE: RIGHT SELF-HIT ***"
+        elif current_state == "BOTH_HITTING":
+            return "*** SCORE: BOTH HIT ***"
+        return "*** SCORE: UNKNOWN STATE ***"
 
     def update_settings(self, new_settings):
         """Updates the game settings."""

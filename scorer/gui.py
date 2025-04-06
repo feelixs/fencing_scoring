@@ -236,12 +236,7 @@ class FencingGui:
             self.output_queue.put({'type': 'status', 'message': "Error: Invalid input values."})
 
     def start_device_thread(self):
-        """
-        Finds the device and starts the processing thread.
-
-        Args:
-            settings: Dictionary with dynamic settings to pass to the processing function.
-        """
+        """Finds the device and starts the processing thread."""
 
         def thread_target():
             vsm_device = self.find_device()
@@ -256,9 +251,7 @@ class FencingGui:
         return thread
 
     def restart_device_thread(self, current_thread=None):
-        """
-        Stops the current device thread and starts a new one with updated settings.
-        """
+        """Stops the current device thread and starts a new one with updated settings."""
         # Stop the current thread if it's running
         if current_thread:
             self.stop_event.set()
@@ -280,7 +273,7 @@ class FencingGui:
         """
         # Settings are now managed by self.scoring_manager
         last_reported_state = None
-        time_last_reported = None
+        time_last_reported = datetime.now()  # Initialize to current time
         # Get debounce time from the manager's settings
         debounce_time = self.scoring_manager.settings.get('debounce_time', DEBOUNCE_TIME)
         start_time = datetime.now()
@@ -313,35 +306,26 @@ class FencingGui:
                     # Apply based on the state *during* the time delta (last_reported_state)
                     if last_reported_state:  # Don't apply continuous damage before first state is known
                         hp_changed_continuous = self.scoring_manager.apply_continuous_damage(
-                            last_reported_state, time_delta
+                            state=last_reported_state,
+                            time_delta=time_delta
                         )
 
                     # --- State Change Reporting & Delegate One-Time Damage ---
                     if current_state != last_reported_state:
-                        # Check debounce time
-                        if time_last_reported is None or \
-                           (current_time - time_last_reported).total_seconds() > debounce_time:
-
-                            elapsed = (current_time - start_time).total_seconds()
+                        within_debounce = (current_time - time_last_reported).total_seconds() <= debounce_time
+                        if not within_debounce or time_last_reported is None:
                             elapsed = (current_time - start_time).total_seconds()
                             status_message = f"[{elapsed:.2f}s] {current_state}"
                             self.output_queue.put({'type': 'status', 'message': status_message})
 
                             # Add specific score messages based on state
-                            if current_state == "LEFT_GOT_HIT":
-                                self.output_queue.put({'type': 'status', 'message': f"*** SCORE: LEFT PLAYER HIT ***"})
-                            elif current_state == "RIGHT_GOT_HIT":
-                                self.output_queue.put({'type': 'status', 'message': f"*** SCORE: RIGHT PLAYER HIT ***"})
-                            elif current_state == "LEFT_HIT_SELF":
-                                self.output_queue.put({'type': 'status', 'message': f"*** SCORE: LEFT SELF-HIT ***"})
-                            elif current_state == "RIGHT_SELF_HIT":
-                                self.output_queue.put({'type': 'status', 'message': f"*** SCORE: RIGHT SELF-HIT ***"})
-                            elif current_state == "BOTH_HITTING":
-                                self.output_queue.put({'type': 'status', 'message': f"*** SCORE: BOTH HIT ***"})
+                            score_message = self.scoring_manager.get_score_message(current_state)
+                            self.output_queue.put({'type': 'status', 'message': score_message})
 
                             # Delegate one-time damage application
                             hp_changed_one_time = self.scoring_manager.apply_one_time_damage(
-                                current_state, last_reported_state
+                                last_reported_state=last_reported_state,
+                                current_state=current_state
                             )
 
                             # Update reported state *after* handling the change
@@ -355,8 +339,6 @@ class FencingGui:
 
                 # Update last loop time for next iteration's delta calculation
                 last_loop_time = current_time
-
-                # No need for time.sleep(0.01) as device.read timeout provides delay
 
         except Exception as e:
             self.output_queue.put({'type': 'status', 'message': f"Error in device loop: {e}"})
