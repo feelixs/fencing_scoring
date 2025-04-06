@@ -56,10 +56,6 @@ def detect_hit_state(data):
 def main():
     gui = FencingGui(find_vsm_device, detect_hit_state)
 
-    # Start the GUI update loop & Tkinter main loop
-    gui.update_gui()
-    gui.root.mainloop()
-
 
 if __name__ == "__main__":
     main()
