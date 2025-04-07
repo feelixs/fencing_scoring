@@ -56,7 +56,7 @@ class FencingGui:
         self.root.grid_columnconfigure(1, weight=1, uniform="group1")  # Right HP bar column
         self.root.grid_rowconfigure(0, weight=0)  # Labels row
         self.root.grid_rowconfigure(1, weight=1)  # Progress bars row
-        self.root.grid_rowconfigure(2, weight=0)  # Debug/Status row
+        self.root.grid_rowconfigure(2, weight=0)  # Status row
         self.root.grid_rowconfigure(3, weight=0)  # Settings row
 
         # --- Left Player Elements ---
@@ -91,14 +91,15 @@ class FencingGui:
 
         # --- Settings Panel Frame ---
         self.settings_frame = ttk.Frame(self.root, padding="10 10 10 10")
-        # Keep settings frame in row 2
-        self.settings_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=10)
+        # Settings frame should be in row 3
+        self.settings_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=10)
 
         # --- Bottom Center Status Label (Debug info) ---
         # Create a frame to hold the status label to control its position better
         self.status_frame = ttk.Frame(self.root)
-        self.status_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(160, 0))
-        
+        # Status frame should be in row 2. Removed large pady.
+        self.status_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=10)
+
         self.status_label = tk.Label(
             master=self.status_frame,
             text="Initializing...",
@@ -398,9 +399,8 @@ class FencingGui:
                     max_lines = 5
                     new_lines = (current_lines + [message])[-max_lines:]
                     self.status_label.config(text="\n".join(new_lines))
-                    
-                    # Ensure the status frame stays in the right position
-                    self.status_frame.lift()
+
+                    # No longer need to lift status_frame as it's in its own row
                 elif item['type'] == 'health':
                     left_hp = item['left']
                     right_hp = item['right']
