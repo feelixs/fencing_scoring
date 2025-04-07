@@ -66,7 +66,7 @@ class FencingGui:
         self.left_hp_bar = ttk.Progressbar(
             master=self.root,
             orient="vertical",
-            length=600,  # Increased height of the bar
+            length=800,  # Further increased height of the bar
             mode="determinate",
             maximum=self.settings['max_hp'],
             value=self.settings['max_hp'],  # Start full
@@ -81,7 +81,7 @@ class FencingGui:
         self.right_hp_bar = ttk.Progressbar(
             master=self.root,
             orient="vertical",
-            length=600,  # Increased height of the bar
+            length=800,  # Further increased height of the bar
             mode="determinate",
             maximum=self.settings['max_hp'],
             value=self.settings['max_hp'],  # Start full
@@ -98,11 +98,13 @@ class FencingGui:
             anchor=tk.CENTER,
             wraplength=800
         )
-        self.status_label.grid(row=2, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
+        # Moved status label to row 3 (below settings)
+        self.status_label.grid(row=3, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
 
         # --- Settings Panel Frame ---
         self.settings_frame = ttk.Frame(self.root, padding="10 10 10 10")
-        self.settings_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=10)
+        # Moved settings frame to row 2 (above status)
+        self.settings_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=10)
 
         self.hit_dmg_entry = ttk.Entry(self.settings_frame, width=8, font=self._entry_font)
         self.hit_dmg_entry.insert(0, str(self.settings['hit_dmg']))
