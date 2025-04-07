@@ -54,7 +54,7 @@ def detect_hit_state(data):
         left_status = STATUS_HITTING_OPPONENT
     elif byte2 == 38:
         left_status = STATUS_HITTING_SELF
-    elif byte2 == 0:
+    elif byte2 in [0, 40, 34]:  # states include when disconnected, or hitting opponent/self while disconnected
         left_status = STATUS_DISCONNECTED
     elif byte2 == 20:
         left_status = STATUS_WEAPONS_HIT
@@ -68,7 +68,7 @@ def detect_hit_state(data):
         right_status = STATUS_HITTING_OPPONENT
     elif byte3 == 120:
         right_status = STATUS_HITTING_SELF
-    elif byte3 == 64:
+    elif byte3 in [64, 98, 104]:  # states include when disconnected, or hitting opponent/self while disconnected
         right_status = STATUS_DISCONNECTED
     elif byte3 == 84:
         right_status = STATUS_WEAPONS_HIT
