@@ -47,12 +47,7 @@ def detect_hit_state(data):
     byte2 = data[2]
     byte3 = data[3]
 
-    # --- Check for specific WEAPONS_HIT combination first ---
-    if byte2 == 20 and byte3 == 84:
-        return STATUS_WEAPONS_HIT, STATUS_WEAPONS_HIT
-
     # --- Left Player Status (based on byte 2) ---
-    # Individual checks proceed if the combined state wasn't matched
     if byte2 == 4:
         left_status = STATUS_NORMAL
     elif byte2 == 44:
@@ -61,7 +56,8 @@ def detect_hit_state(data):
         left_status = STATUS_HITTING_SELF
     elif byte2 == 0:
         left_status = STATUS_DISCONNECTED
-    # Removed the individual check for byte2 == 20 as it's handled by the combined check
+    elif byte2 == 20:
+        left_status = STATUS_WEAPONS_HIT
     else:
         left_status = STATUS_UNKNOWN
 
@@ -74,11 +70,11 @@ def detect_hit_state(data):
         right_status = STATUS_HITTING_SELF
     elif byte3 == 64:
         right_status = STATUS_DISCONNECTED
-    # Removed the individual check for byte3 == 84 as it's handled by the combined check
+    elif byte3 == 84:
+        right_status = STATUS_WEAPONS_HIT
     else:
         right_status = STATUS_UNKNOWN
 
-    # Return the determined individual statuses
     return left_status, right_status
 
 
