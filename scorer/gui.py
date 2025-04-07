@@ -16,7 +16,7 @@ from scorer.settings import (
 
 class FencingGui:
     def __init__(self, find_device, detect_hit_state):
-        self._bar_thickness = 120  # health bar thickness
+        # Removed fixed _bar_thickness, will calculate dynamically
 
         # Queue for communication between threads
         self.output_queue = queue.Queue()
@@ -165,13 +165,13 @@ class FencingGui:
             style="Green.Vertical.TProgressbar",
             troughcolor='lightgray',
             background='green',
-            thickness=self._bar_thickness
+            thickness=bar_thickness # Use calculated thickness
         )
         self.style.configure(
             style="Red.Vertical.TProgressbar",
             troughcolor='lightgray',
             background='red',
-            thickness=self._bar_thickness
+            thickness=bar_thickness # Use calculated thickness
         )
 
     def _setup_labels(self):
