@@ -16,31 +16,21 @@ def find_vsm_device():
 
 
 def process_vsm_data(device):
+    last_payload = [0 * 41]  # Placeholder for the last payload
+    last_length = 0
     try:
         while True:
             # Read data from the device
             data = device.read(42)
-            print(len(data))
+            if last_length != len(data):
+                last_length = len(data)
+                print(datetime.now(), f"Data length changed: {last_length}")
+                last_length = len(data)
             if data:
-                print(datetime.now(), f"Raw data: {data}")
-
-                # In HID protocols, we often need to check specific bits or bytes
-                # Looking for the equivalent of Swift's usagePage == 9 && usage == 49
-
-                # This is a simplified approach - the actual byte position and bit masks
-                # would depend on the specific VSM HID report format
-                if len(data) >= 2:
-                    # Example check for button events (may need adjustment)
-                    # First byte might contain report ID or button state info
-                    # Second byte might contain specific button identifier
-
-                    # Check if this is a button event (usage page 9)
-                    if (data[0] & 0xF0) == 0x90:  # Example bit mask for button events
-                        # Check if this is button 49
-                        if data[1] == 49:
-                            print("Detected button 49 event (equivalent to Swift code)")
-                            # Handle the event
-
+                trimmed_data = data[1:]  # skip the first byte (data's encoded timestamp)
+                if trimmed_data != last_payload:
+                    print(datetime.now(), f"Raw data: {data}")
+                    last_payload = trimmed_data
     except KeyboardInterrupt:
         print("Monitoring stopped")
     finally:
