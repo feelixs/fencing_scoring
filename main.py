@@ -32,16 +32,17 @@ STATUS_NORMAL = "NORMAL"
 STATUS_HITTING_OPPONENT = "HITTING_OPPONENT"
 STATUS_HITTING_SELF = "HITTING_SELF"
 STATUS_DISCONNECTED = "DISCONNECTED"
-STATUS_WEAPONS_HIT = "WEAPONS_HIT" # Special case?
+STATUS_WEAPONS_HIT = "WEAPONS_HIT"  # Special case?
 STATUS_UNKNOWN = "UNKNOWN"
+
 
 def detect_hit_state(data):
     """
     Detects the independent state of each player based on signature bytes.
     Returns a tuple: (left_player_status, right_player_status)
     """
-    if len(data) < 4: # Need at least counter, report ID, byte 2, byte 3
-        return (STATUS_UNKNOWN, STATUS_UNKNOWN)
+    if len(data) < 4:  # Need at least counter, report ID, byte 2, byte 3
+        return STATUS_UNKNOWN, STATUS_UNKNOWN
 
     byte2 = data[2]
     byte3 = data[3]
@@ -55,8 +56,8 @@ def detect_hit_state(data):
         left_status = STATUS_HITTING_SELF
     elif byte2 == 0:
         left_status = STATUS_DISCONNECTED
-    elif byte2 == 20: # Part of WEAPONS_HIT
-        left_status = STATUS_WEAPONS_HIT # Or treat as NORMAL? Needs testing.
+    elif byte2 == 20:  # Part of WEAPONS_HIT
+        left_status = STATUS_WEAPONS_HIT  # Or treat as NORMAL? Needs testing.
     else:
         left_status = STATUS_UNKNOWN
 
@@ -69,8 +70,8 @@ def detect_hit_state(data):
         right_status = STATUS_HITTING_SELF
     elif byte3 == 64:
         right_status = STATUS_DISCONNECTED
-    elif byte3 == 84: # Part of WEAPONS_HIT
-        right_status = STATUS_WEAPONS_HIT # Or treat as NORMAL? Needs testing.
+    elif byte3 == 84:  # Part of WEAPONS_HIT
+        right_status = STATUS_WEAPONS_HIT  # Or treat as NORMAL? Needs testing.
     else:
         right_status = STATUS_UNKNOWN
 
@@ -79,7 +80,7 @@ def detect_hit_state(data):
     # If byte2 == 20 and byte3 == 84:
     #    return (STATUS_WEAPONS_HIT, STATUS_WEAPONS_HIT) # Or specific handling?
 
-    return (left_status, right_status)
+    return left_status, right_status
 
 
 if __name__ == "__main__":
