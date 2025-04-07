@@ -29,14 +29,19 @@ def process_vsm_data(device):
             if last_length != len(data):
                 last_length = len(data)
                 print(datetime.now(), f"Data length changed: {last_length}")
-                last_length = len(data)
+                # Removed duplicated last_length assignment below
             if data:
+                current_time = time.time()
                 trimmed_data = data[1:]  # skip the first byte (data's encoded timestamp)
                 if trimmed_data != last_payload:
-                    print(datetime.now(), f"Raw data: {data}")
-                    last_payload = trimmed_data
+                    if current_time - last_print_time > debounce_seconds:
+                        print(datetime.now(), f"Raw data: {data}")
+                        last_payload = trimmed_data
+                        last_print_time = current_time
+                    # else: Debounced - data changed, but too quickly, so ignore for printing
+                # else: Data is the same as last printed, do nothing
     except KeyboardInterrupt:
-        print("Monitoring stopped")
+        print("\nMonitoring stopped")
     finally:
         device.close()
 
