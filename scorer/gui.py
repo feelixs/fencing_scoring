@@ -56,8 +56,8 @@ class FencingGui:
         self.root.grid_columnconfigure(1, weight=1, uniform="group1")  # Right HP bar column
         self.root.grid_rowconfigure(0, weight=0)  # Labels row
         self.root.grid_rowconfigure(1, weight=1)  # Progress bars row
-        self.root.grid_rowconfigure(2, weight=0)  # Status row
-        self.root.grid_rowconfigure(3, weight=0)  # Settings row
+        self.root.grid_rowconfigure(2, weight=0)  # Combined Status & Settings row
+        # Row 3 is no longer used
 
         # --- Left Player Elements ---
         self.left_label = tk.Label(self.root, text="LEFT PLAYER", font=self._label_font)  # Removed bg/fg
@@ -89,16 +89,21 @@ class FencingGui:
         )
         self.right_hp_bar.grid(row=1, column=1, padx=20, pady=20, sticky="ns")  # Take up whole side
 
-        # --- Settings Panel Frame ---
+        # --- Settings Panel Frame (Now on the right side of the bottom row) ---
         self.settings_frame = ttk.Frame(self.root, padding="10 10 10 10")
-        # Settings frame should be in row 3
-        self.settings_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=10)
+        # Settings frame now in row 2, column 1
+        self.settings_frame.grid(row=2, column=1, sticky="nsew", padx=(10, 20), pady=10)
 
-        # --- Bottom Center Status Label (Debug info) ---
+        # --- Status Label Frame (Now on the left side of the bottom row) ---
         # Create a frame to hold the status label to control its position better
         self.status_frame = ttk.Frame(self.root)
-        # Status frame should be in row 2. Removed large pady.
-        self.status_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=10)
+        # Status frame now in row 2, column 0
+        self.status_frame.grid(row=2, column=0, sticky="nsew", padx=(20, 10), pady=10)
+        # Configure the column within status_frame to expand
+        self.status_frame.grid_columnconfigure(0, weight=1)
+        # Configure the row within status_frame to expand if needed (optional)
+        self.status_frame.grid_rowconfigure(0, weight=1)
+
 
         self.status_label = tk.Label(
             master=self.status_frame,
@@ -106,10 +111,11 @@ class FencingGui:
             font=self._status_font,
             justify=tk.CENTER,
             anchor=tk.CENTER,
-            wraplength=800
+            wraplength=600 # Adjust wrap length based on potentially smaller area
         )
-        # Place status label within its frame
-        self.status_label.pack(fill=tk.X, padx=10, pady=10)
+        # Place status label within its frame using grid for better alignment
+        self.status_label.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+
 
         self.hit_dmg_entry = ttk.Entry(self.settings_frame, width=8, font=self._entry_font)
         self.hit_dmg_entry.insert(0, str(self.settings['hit_dmg']))
