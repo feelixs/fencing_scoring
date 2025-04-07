@@ -20,7 +20,7 @@ def process_vsm_data(device):
     last_payload = [0] * 41  # Placeholder for the last payload
     last_length = 0
     last_print_time = 0
-    debounce_seconds = 0.1  # Only print changes if they persist for 50ms
+    debounce_seconds = 0.01  # Only print changes if they persist for 50ms
 
     try:
         while True:
@@ -34,7 +34,7 @@ def process_vsm_data(device):
                 trimmed_data = data[1:]  # skip the first byte (data's encoded timestamp)
                 if trimmed_data != last_payload:
                     if current_time - last_print_time > debounce_seconds:
-                        print(datetime.now(), f"Raw data: {data}")
+                        print(datetime.now(), f"Raw data changed: {data}")
                         last_payload = trimmed_data
                         last_print_time = current_time
     except KeyboardInterrupt:
