@@ -89,22 +89,26 @@ class FencingGui:
         )
         self.right_hp_bar.grid(row=1, column=1, padx=20, pady=20, sticky="ns")  # Take up whole side
 
+        # --- Settings Panel Frame ---
+        self.settings_frame = ttk.Frame(self.root, padding="10 10 10 10")
+        # Keep settings frame in row 2
+        self.settings_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=10)
+
         # --- Bottom Center Status Label (Debug info) ---
+        # Create a frame to hold the status label to control its position better
+        self.status_frame = ttk.Frame(self.root)
+        self.status_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(160, 0))
+        
         self.status_label = tk.Label(
-            master=self.root,
+            master=self.status_frame,
             text="Initializing...",
             font=self._status_font,
             justify=tk.CENTER,
             anchor=tk.CENTER,
             wraplength=800
         )
-        # Moved status label to row 3 (below settings)
-        self.status_label.grid(row=3, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
-
-        # --- Settings Panel Frame ---
-        self.settings_frame = ttk.Frame(self.root, padding="10 10 10 10")
-        # Moved settings frame to row 2 (above status)
-        self.settings_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=10)
+        # Place status label within its frame
+        self.status_label.pack(fill=tk.X, padx=10, pady=10)
 
         self.hit_dmg_entry = ttk.Entry(self.settings_frame, width=8, font=self._entry_font)
         self.hit_dmg_entry.insert(0, str(self.settings['hit_dmg']))
@@ -394,6 +398,9 @@ class FencingGui:
                     max_lines = 5
                     new_lines = (current_lines + [message])[-max_lines:]
                     self.status_label.config(text="\n".join(new_lines))
+                    
+                    # Ensure the status frame stays in the right position
+                    self.status_frame.lift()
                 elif item['type'] == 'health':
                     left_hp = item['left']
                     right_hp = item['right']
