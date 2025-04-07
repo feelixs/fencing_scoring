@@ -1,3 +1,4 @@
+import time
 import tkinter as tk
 from tkinter import ttk, font as tkFont
 from threading import Thread, Event
@@ -241,10 +242,15 @@ class FencingGui:
         def thread_target():
             vsm_device = self.find_device()
             if vsm_device:
-                self.process_vsm_data(vsm_device)
+                return self.process_vsm_data(vsm_device)  # this is a blocking call (while loop)
             else:
                 self.output_queue.put({'type': 'status', 'message': "VSM device not found."})
                 self.output_queue.put({'type': 'status', 'message': "Check connection/permissions."})
+
+            while not vsm_device:
+                time.sleep(1)  # Wait before retrying
+                vsm_device = self.find_device()
+            return self.process_vsm_data(vsm_device)
 
         thread = Thread(target=thread_target, daemon=True)
         thread.start()
