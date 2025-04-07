@@ -12,7 +12,10 @@ Okay, let's break down how we figured out the roles of `data[2]` and `data[3]` a
 2.  **Identifying Independent Bytes:** From these comparisons, it becomes clear that:
     *   The byte at index `2` (`data[2]`) consistently changes based on the actions or status of the **Left** player.
     *   The byte at index `3` (`data[3]`) consistently changes based on the actions or status of the **Right** player.
-    *   The first two bytes (`data[0]`, `data[1]`) seem to be a counter and a report ID (common in HID), and the subsequent bytes often repeat the pattern of bytes 2 and 3. We focus on the first occurrence (`data[2]` and `data[3]`) as the primary indicators.
+    *   The first two bytes (`data[0]`, `data[1]`) seem to be a counter or timestamp and a report ID (common in HID).
+    *   Bytes `data[2]` and `data[3]` appear to be the most immediate and definitive indicators of the current state for the left and right players, respectively.
+    *   The subsequent bytes (`data[4]` through `data[41]`) are **not** simple padding. Observation of state transitions (like in `testing/unknowntorightneutral`) shows that these later bytes reflect the state change with a slight delay, sometimes showing a mix of the previous and current state values for a few report cycles before stabilizing. This suggests some internal buffering or delayed propagation within the device's reporting mechanism.
+    *   Therefore, we focus on the first occurrence (`data[2]` and `data[3]`) as the primary indicators for our logic.
 
 3.  **Decoding the Values:** The specific numeric values (4, 44, 38, 0, 20 for the left player; 80, 114, 120, 64, 84 for the right player) are essentially **arbitrary codes** defined by the VSM device's firmware. There isn't necessarily a deeper mathematical or bitwise encoding scheme that's immediately obvious. It's a direct mapping:
     *   `data[2] == 4` means Left player is NORMAL.
