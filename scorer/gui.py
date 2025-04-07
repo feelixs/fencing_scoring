@@ -299,11 +299,11 @@ class FencingGui:
         into the output queue. Runs until stop_event is set.
         """
         # Settings are managed by self.scoring_manager
-        last_reported_state = None # Will store state tuples (left_status, right_status)
-        time_last_reported = None # Initialize to None, set on first valid state
+        last_reported_state = None  # Will store state tuples (left_status, right_status)
+        time_last_reported = None  # Initialize to None, set on first valid state
         debounce_time = self.scoring_manager.settings.get('debounce_time', DEBOUNCE_TIME)
         start_time = datetime.now()
-        last_loop_time = start_time # Track time for delta calculation
+        last_loop_time = start_time  # Track time for delta calculation
 
         # Initial status and health update using ScoringManager
         self.output_queue.put({'type': 'status', 'message': "Monitoring fencing hits..."})
@@ -313,77 +313,92 @@ class FencingGui:
 
         try:
             while not self.stop_event.is_set():
-                current_time = datetime.now()
-                time_delta: timedelta = current_time - last_loop_time
-                hp_changed_continuous = False
-                hp_changed_one_time = False
+                try:
+                    current_time = datetime.now()
+                    time_delta: timedelta = current_time - last_loop_time
+                    hp_changed_continuous = False
+                    hp_changed_one_time = False
 
-                # Read data from the device (with a short timeout to allow checking stop_event)
-                data = device.read(42, timeout_ms=100)
+                    # Read data from the device (with a short timeout to allow checking stop_event)
+                    data = device.read(42, timeout_ms=100)
 
-                if self.stop_event.is_set():
-                    # double check after potential blocking read
-                    break
+                    if self.stop_event.is_set():
+                        # double check after potential blocking read
+                        break
 
-                if data:
-                    current_state_tuple = self.detect_hit_state(data)
+                    if data:
+                        current_state_tuple = self.detect_hit_state(data)
 
-                    # --- Delegate Continuous Damage Calculation ---
-                    # Apply based on the state *during* the time delta (last_reported_state tuple)
-                    # Requires last_reported_state to be known
-                    if last_reported_state:
-                        hp_changed_continuous = self.scoring_manager.apply_continuous_damage(
-                            last_state_tuple=last_reported_state,
-                            time_delta=time_delta
-                        )
-
-                    # --- State Change Reporting & Delegate One-Time Damage ---
-                    if current_state_tuple != last_reported_state:
-                        # Debounce check: only process change if enough time has passed since the *last processed* change
-                        if time_last_reported is None or \
-                           (current_time - time_last_reported).total_seconds() > debounce_time:
-
-                            elapsed = (current_time - start_time).total_seconds()
-                            left_status, right_status = current_state_tuple
-                            status_message = f"[{elapsed:.2f}s] L: {left_status}, R: {right_status}"
-                            self.output_queue.put({'type': 'status', 'message': status_message})
-
-                            # Determine score messages based on transitions *before* applying damage
-                            last_left, last_right = last_reported_state if last_reported_state else (None, None)
-                            current_left, current_right = current_state_tuple
-
-                            score_messages = []
-                            # Check for transitions that indicate a score
-                            if current_left == "HITTING_OPPONENT" and last_left != "HITTING_OPPONENT":
-                                score_messages.append("*** SCORE: LEFT PLAYER HIT ***")
-                            if current_right == "HITTING_OPPONENT" and last_right != "HITTING_OPPONENT":
-                                score_messages.append("*** SCORE: RIGHT PLAYER HIT ***")
-                            if current_left == "HITTING_SELF" and last_left != "HITTING_SELF":
-                                score_messages.append("*** SCORE: LEFT SELF-HIT ***")
-                            if current_right == "HITTING_SELF" and last_right != "HITTING_SELF":
-                                score_messages.append("*** SCORE: RIGHT SELF-HIT ***")
-                            # Add messages for disconnects/reconnects? Maybe later.
-
-                            for msg in score_messages:
-                                self.output_queue.put({'type': 'status', 'message': msg})
-
-                            # Delegate one-time damage application using tuples
-                            hp_changed_one_time = self.scoring_manager.apply_one_time_damage(
+                        # --- Delegate Continuous Damage Calculation ---
+                        # Apply based on the state *during* the time delta (last_reported_state tuple)
+                        # Requires last_reported_state to be known
+                        if last_reported_state:
+                            hp_changed_continuous = self.scoring_manager.apply_continuous_damage(
                                 last_state_tuple=last_reported_state,
-                                current_state_tuple=current_state_tuple
+                                time_delta=time_delta
                             )
 
-                            # Update reported state *after* handling the change
-                            last_reported_state = current_state_tuple
-                            time_last_reported = current_time # Update time of last processed change
+                        # --- State Change Reporting & Delegate One-Time Damage ---
+                        if current_state_tuple != last_reported_state:
+                            if time_last_reported is None:
+                                # first run
+                                within_debounce_time = False
+                            else:
+                                within_debounce_time = (current_time - time_last_reported).total_seconds() <= debounce_time
 
-                # --- Send HP Update if it Changed this Iteration (either continuous or one-time) ---
-                if hp_changed_continuous or hp_changed_one_time:
-                    current_left_hp, current_right_hp = self.scoring_manager.get_hp()
-                    self.output_queue.put({'type': 'health', 'left': current_left_hp, 'right': current_right_hp})
+                            if not within_debounce_time:
+                                elapsed = (current_time - start_time).total_seconds()
+                                left_status, right_status = current_state_tuple
+                                status_message = f"[{elapsed:.2f}s] L: {left_status}, R: {right_status}"
+                                self.output_queue.put({'type': 'status', 'message': status_message})
 
-                # Update last loop time for next iteration's delta calculation
-                last_loop_time = current_time
+                                # Determine score messages based on transitions *before* applying damage
+                                last_left, last_right = last_reported_state if last_reported_state else (None, None)
+                                current_left, current_right = current_state_tuple
+
+                                score_messages = []
+                                # Check for transitions that indicate a score
+                                if current_left == "HITTING_OPPONENT" and last_left != "HITTING_OPPONENT":
+                                    score_messages.append("*** SCORE: LEFT PLAYER HIT ***")
+                                if current_right == "HITTING_OPPONENT" and last_right != "HITTING_OPPONENT":
+                                    score_messages.append("*** SCORE: RIGHT PLAYER HIT ***")
+                                if current_left == "HITTING_SELF" and last_left != "HITTING_SELF":
+                                    score_messages.append("*** SCORE: LEFT SELF-HIT ***")
+                                if current_right == "HITTING_SELF" and last_right != "HITTING_SELF":
+                                    score_messages.append("*** SCORE: RIGHT SELF-HIT ***")
+                                # Add messages for disconnects/reconnects? Maybe later.
+
+                                for msg in score_messages:
+                                    self.output_queue.put({'type': 'status', 'message': msg})
+
+                                # Delegate one-time damage application using tuples
+                                hp_changed_one_time = self.scoring_manager.apply_one_time_damage(
+                                    last_state_tuple=last_reported_state,
+                                    current_state_tuple=current_state_tuple
+                                )
+
+                                # Update reported state *after* handling the change
+                                last_reported_state = current_state_tuple
+                                time_last_reported = current_time  # Update time of last processed change
+
+                    # --- Send HP Update if it Changed this Iteration (either continuous or one-time) ---
+                    if hp_changed_continuous or hp_changed_one_time:
+                        current_left_hp, current_right_hp = self.scoring_manager.get_hp()
+                        self.output_queue.put({'type': 'health', 'left': current_left_hp, 'right': current_right_hp})
+
+                    # Update last loop time for next iteration's delta calculation
+                    last_loop_time = current_time
+                except IOError as e:
+                    # Handle device read error (e.g., device disconnected)
+                    self.output_queue.put({'type': 'status', 'message': f"Device monitoring paused: Please reconnect the device."})
+                    device = None
+                    while not device:
+                        time.sleep(1)
+                        device = self.find_device()
+                    # Device reconnected, restart the loop
+                    time_last_reported = None
+                    last_reported_state = None  # reset these
+                    self.output_queue.put({'type': 'status', 'message': "Device reconnected. Resuming monitoring..."})
 
         except Exception as e:
             self.output_queue.put({'type': 'status', 'message': f"Error in device loop: {e}"})
