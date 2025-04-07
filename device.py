@@ -1,4 +1,5 @@
 import hid
+import time
 from datetime import datetime
 
 
@@ -16,11 +17,14 @@ def find_vsm_device():
 
 
 def process_vsm_data(device):
-    last_payload = [0 * 41]  # Placeholder for the last payload
+    last_payload = [0] * 41  # Placeholder for the last payload
     last_length = 0
+    last_print_time = 0
+    debounce_seconds = 0.05  # Only print changes if they persist for 50ms
+
     try:
         while True:
-            # Read data from the device
+            # Read data from the device (blocking read)
             data = device.read(42)
             if last_length != len(data):
                 last_length = len(data)
