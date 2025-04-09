@@ -41,7 +41,7 @@ def detect_hit_state(data):
     Detects the independent state of each player based on signature bytes.
     Returns a tuple: (left_player_status, right_player_status)
     """
-    if len(data) < 4:  # Need at least counter, report ID, byte 2, byte 3
+    if len(data) < 4:  # Need at least up to byte 2, byte 3
         return STATUS_UNKNOWN, STATUS_UNKNOWN
 
     byte2 = data[2]
