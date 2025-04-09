@@ -18,6 +18,9 @@ class FencingGui:
     def __init__(self, find_device, detect_hit_state):
         # Removed fixed _bar_thickness, will calculate dynamically
 
+        # find_device should return the VSM device, or None if it's not found
+        self.find_device = find_device
+
         # Queue for communication between threads
         self.output_queue = queue.Queue()
         self.stop_event = Event()
@@ -26,7 +29,6 @@ class FencingGui:
         self.root.title("Fencing Hit Detector")
         self.root.attributes('-fullscreen', True)
 
-        self.find_device = find_device
         self.detect_hit_state = detect_hit_state
 
         self.style = ttk.Style(self.root)
