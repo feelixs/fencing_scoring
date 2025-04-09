@@ -118,7 +118,6 @@ class FencingGui:
         # Place status label within its frame using grid for better alignment
         self.status_label.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
-
         self.hit_dmg_entry = ttk.Entry(self.settings_frame, width=8, font=self._entry_font)
         self.hit_dmg_entry.insert(0, str(self.settings['hit_dmg']))
         self.hit_dmg_entry.grid(row=0, column=1, padx=5, pady=5, sticky="w")
@@ -303,6 +302,7 @@ class FencingGui:
         # Settings are managed by self.scoring_manager
         last_reported_state = None  # Will store state tuples (left_status, right_status)
         time_last_reported = None  # Initialize to None, set on first valid state
+        last_state_change_time = None
         debounce_time = self.scoring_manager.settings.get('debounce_time', DEBOUNCE_TIME)
         start_time = datetime.now()
         last_loop_time = start_time  # Track time for delta calculation
@@ -337,11 +337,14 @@ class FencingGui:
                         if last_reported_state:
                             hp_changed_continuous = self.scoring_manager.apply_continuous_damage(
                                 last_state_tuple=last_reported_state,
-                                time_delta=time_delta
+                                time_delta=time_delta,
+                                last_state_change_time=last_state_change_time,
+                                current_time=current_time
                             )
 
                         # --- State Change Reporting & Delegate One-Time Damage ---
                         if current_state_tuple != last_reported_state:
+                            last_state_change_time = current_time
                             if time_last_reported is None:
                                 # first run
                                 within_debounce_time = False

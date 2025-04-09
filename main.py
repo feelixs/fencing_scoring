@@ -5,6 +5,9 @@ from scorer.gui import FencingGui
 # move debugging to bottom center
 # flashing color on damage?
 
+# add variable between hit and continuous damage beginning "Initial Interval")
+# deboucne
+
 # beeping on hit & game over -> beep -> whistle
 # diff beeps for each person being hit?
 

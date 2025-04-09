@@ -1,4 +1,5 @@
-from datetime import timedelta
+from datetime import timedelta, datetime
+from typing import Optional
 
 
 class ScoringManager:
@@ -26,10 +27,16 @@ class ScoringManager:
         """Returns the current HP of both players."""
         return self.left_hp, self.right_hp
 
-    def apply_continuous_damage(self, last_state_tuple, time_delta: timedelta):
+    def apply_continuous_damage(self, last_state_tuple, time_delta: timedelta, last_state_change_time: Optional[datetime], current_time):
         """Applies continuous damage based on the individual player states *during* the time delta."""
         if last_state_tuple is None:
             return False # Cannot apply damage if previous state is unknown
+
+        if last_state_change_time is not None:
+            within_debounce = (current_time - last_state_change_time).total_seconds() < self.settings['debounce_time']
+            # doubounce time is in s, todo replace with new var?
+            if within_debounce:
+                return False
 
         hp_changed = False
         damage_increment = time_delta.total_seconds() * 1000 * self.settings['hit_dmg_per_ms']
