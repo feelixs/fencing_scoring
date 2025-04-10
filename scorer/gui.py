@@ -260,6 +260,8 @@ class FencingGui:
             left_hp, right_hp = self.scoring_manager.get_hp()
             self.output_queue.put({'type': 'health', 'left': left_hp, 'right': right_hp})
 
+            self.stop_event.clear()  # Reset the stop event to allow monitoring again
+
             # Update status
             self.output_queue.put({'type': 'status', 'message': "Game reset with new settings!"})
 
@@ -422,7 +424,7 @@ class FencingGui:
 
     def update_gui(self) -> bool:
         """ Checks the queue for messages and updates the GUI elements. """
-        player_won = False
+        player_won = self.stop_event.is_set()  # if a player already won, the stop event would be set
         try:
             while True:  # Process all messages currently in queue
                 item = self.output_queue.get_nowait()
@@ -474,7 +476,8 @@ class FencingGui:
         except queue.Empty:
             pass  # No messages currently
 
-        if player_won:
+        if player_won and not self.stop_event.is_set():
+            print("Player has won, stopping device thread.")
             self.stop_event.set()  # Stop the device thread if a player has won
 
         # Schedule the next check
