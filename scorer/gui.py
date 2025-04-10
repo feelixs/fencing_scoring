@@ -424,7 +424,8 @@ class FencingGui:
     def update_gui(self):
         """ Checks the queue for messages and updates the GUI elements. """
         try:
-            while True:  # Process all messages currently in queue
+            player_won = False
+            while not player_won:  # Process all messages currently in queue
                 item = self.output_queue.get_nowait()
 
                 if item['type'] == 'status':
@@ -443,11 +444,13 @@ class FencingGui:
                     self.left_hp_bar['value'] = left_hp
                     self.right_hp_bar['value'] = right_hp
 
-                    # Play sound when a player's HP reaches 0
+                    # Play sound and display winner when a player's HP reaches 0
                     if left_hp == 0 and not self.left_hp_zero:
                         self.left_hp_zero = True
                         try:
                             playsound('sounds/defeat.mp3', block=False)
+                            self.output_queue.put({'type': 'status', 'message': "*** PLAYER 2: RIGHT WINS ***"})
+                            player_won = True
                         except Exception as e:
                             print(f"Sound error: {e}")
                     
@@ -455,6 +458,8 @@ class FencingGui:
                         self.right_hp_zero = True
                         try:
                             playsound('sounds/defeat.mp3', block=False)
+                            self.output_queue.put({'type': 'status', 'message': "*** PLAYER 1: LEFT WINS ***"})
+                            player_won = True
                         except Exception as e:
                             print(f"Sound error: {e}")
                     
