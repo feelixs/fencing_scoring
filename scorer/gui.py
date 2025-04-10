@@ -4,6 +4,7 @@ from tkinter import ttk, font as tkFont
 from threading import Thread, Event
 from datetime import datetime, timedelta
 import queue
+from playsound import playsound
 from scorer.player import ScoringManager
 from scorer.settings import (
     GLOBAL_HIT_DMG,
@@ -60,6 +61,10 @@ class FencingGui:
         self.root.grid_rowconfigure(1, weight=1)  # Progress bars row
         self.root.grid_rowconfigure(2, weight=0)  # Combined Status & Settings row
         # Row 3 is no longer used
+        
+        # Track if HP has reached zero to play sound only once
+        self.left_hp_zero = False
+        self.right_hp_zero = False
 
         # --- Left Player Elements ---
         self.left_label = tk.Label(self.root, text="LEFT PLAYER", font=self._label_font)  # Removed bg/fg
@@ -244,6 +249,10 @@ class FencingGui:
             # Update settings in ScoringManager and reset HP
             self.scoring_manager.update_settings(new_settings)
             self.scoring_manager.reset()
+            
+            # Reset sound flags when game is reset
+            self.left_hp_zero = False
+            self.right_hp_zero = False
 
             # Restart the device thread (it will use the updated self.scoring_manager)
             self.device_thread = self.restart_device_thread(self.device_thread)
@@ -434,6 +443,27 @@ class FencingGui:
                     self.left_hp_bar['value'] = left_hp
                     self.right_hp_bar['value'] = right_hp
 
+                    # Play sound when a player's HP reaches 0
+                    if left_hp == 0 and not self.left_hp_zero:
+                        self.left_hp_zero = True
+                        try:
+                            playsound('sounds/defeat.mp3', block=False)
+                        except Exception as e:
+                            print(f"Sound error: {e}")
+                    
+                    if right_hp == 0 and not self.right_hp_zero:
+                        self.right_hp_zero = True
+                        try:
+                            playsound('sounds/defeat.mp3', block=False)
+                        except Exception as e:
+                            print(f"Sound error: {e}")
+                    
+                    # Reset the flags if HP is restored
+                    if left_hp > 0:
+                        self.left_hp_zero = False
+                    if right_hp > 0:
+                        self.right_hp_zero = False
+                    
                     # Styles are now static (Green for left, Red for right)
                     # No need to update style based on health anymore
                 self.root.update_idletasks()  # Update GUI immediately
