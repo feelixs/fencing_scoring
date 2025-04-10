@@ -111,7 +111,6 @@ class FencingGui:
         # Configure the row within status_frame to expand if needed (optional)
         self.status_frame.grid_rowconfigure(0, weight=1)
 
-
         self.status_label = tk.Label(
             master=self.status_frame,
             text="Initializing...",
@@ -159,7 +158,7 @@ class FencingGui:
 
     def run(self):
         # Start the GUI update loop & Tkinter main loop
-        self.update_gui()
+        won = self.update_gui()
         self.root.mainloop()
 
     def _configure_styles(self):
@@ -413,7 +412,7 @@ class FencingGui:
                     time_last_reported = None
                     last_reported_state = None  # reset these
                     self.output_queue.put({'type': 'status', 'message': "Device reconnected. Resuming monitoring..."})
-
+            print("Device thread stopped: stop_event set.")
         except Exception as e:
             self.output_queue.put({'type': 'status', 'message': f"Error in device loop: {e}"})
         finally:
@@ -474,6 +473,9 @@ class FencingGui:
                 self.root.update_idletasks()  # Update GUI immediately
         except queue.Empty:
             pass  # No messages currently
+
+        if player_won:
+            self.stop_event.set()  # Stop the device thread if a player has won
 
         # Schedule the next check
         self.root.after(100, self.update_gui)  # Check every 100ms
