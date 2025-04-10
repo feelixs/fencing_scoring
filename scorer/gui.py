@@ -421,11 +421,11 @@ class FencingGui:
             if device:
                 device.close()
 
-    def update_gui(self):
+    def update_gui(self) -> bool:
         """ Checks the queue for messages and updates the GUI elements. """
+        player_won = False
         try:
-            player_won = False
-            while not player_won:  # Process all messages currently in queue
+            while True:  # Process all messages currently in queue
                 item = self.output_queue.get_nowait()
 
                 if item['type'] == 'status':
@@ -477,6 +477,7 @@ class FencingGui:
 
         # Schedule the next check
         self.root.after(100, self.update_gui)  # Check every 100ms
+        return player_won
 
     # Function to handle window closing
     def on_closing(self):
