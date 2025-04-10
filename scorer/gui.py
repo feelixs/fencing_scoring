@@ -39,6 +39,7 @@ class FencingGui:
         self._status_font = tkFont.Font(family="Helvetica", size=16)
         self._entry_font = tkFont.Font(family="Helvetica", size=12)
         self._button_font = tkFont.Font(family="Helvetica", size=12, weight="bold")
+        self._winner_font = tkFont.Font(family="Helvetica", size=48, weight="bold")  # Large font for winner display
 
         self.settings = {
             'hit_dmg': GLOBAL_HIT_DMG,
@@ -65,6 +66,23 @@ class FencingGui:
         # Track if HP has reached zero to play sound only once
         self.left_hp_zero = False
         self.right_hp_zero = False
+        
+        # Create winner display frame (initially hidden)
+        # Use high stacking order to appear on top of all other widgets
+        self.winner_frame = tk.Frame(self.root, bg="black")
+        # Higher stacking order value (z-order) ensures it appears on top of other widgets
+        self.winner_frame.place(relx=0.5, rely=0.5, anchor="center", relwidth=1, relheight=0.2)
+        self.winner_frame.lift()  # Raise to the top of stacking order
+        self.winner_frame.place_forget()  # Hide initially
+        
+        self.winner_label = tk.Label(
+            self.winner_frame, 
+            text="", 
+            font=self._winner_font, 
+            fg="white", 
+            bg="black"
+        )
+        self.winner_label.pack(expand=True, fill="both")
 
         # --- Left Player Elements ---
         self.left_label = tk.Label(self.root, text="LEFT PLAYER", font=self._label_font)  # Removed bg/fg
@@ -252,6 +270,9 @@ class FencingGui:
             # Reset sound flags when game is reset
             self.left_hp_zero = False
             self.right_hp_zero = False
+            
+            # Hide winner display
+            self.winner_frame.place_forget()
 
             # Restart the device thread (it will use the updated self.scoring_manager)
             self.device_thread = self.restart_device_thread(self.device_thread)
@@ -414,7 +435,7 @@ class FencingGui:
                     time_last_reported = None
                     last_reported_state = None  # reset these
                     self.output_queue.put({'type': 'status', 'message': "Device reconnected. Resuming monitoring..."})
-            print("Device thread stopped: stop_event set.")
+            # display "player x won" in bold across the screen
         except Exception as e:
             self.output_queue.put({'type': 'status', 'message': f"Error in device loop: {e}"})
         finally:
@@ -451,6 +472,11 @@ class FencingGui:
                         try:
                             playsound('sounds/defeat.mp3', block=False)
                             self.output_queue.put({'type': 'status', 'message': "*** PLAYER 2: RIGHT WINS ***"})
+                            # Show winner message with RIGHT player color (red)
+                            self.winner_label.config(text="PLAYER 2: RIGHT WINS", fg="white", bg="red")
+                            self.winner_frame.config(bg="red")
+                            self.winner_frame.place(relx=0.5, rely=0.5, anchor="center", relwidth=1, relheight=0.2)
+                            self.winner_frame.lift()  # Make sure it appears on top
                             player_won = True
                         except Exception as e:
                             print(f"Sound error: {e}")
@@ -460,6 +486,11 @@ class FencingGui:
                         try:
                             playsound('sounds/defeat.mp3', block=False)
                             self.output_queue.put({'type': 'status', 'message': "*** PLAYER 1: LEFT WINS ***"})
+                            # Show winner message with LEFT player color (green)
+                            self.winner_label.config(text="PLAYER 1: LEFT WINS", fg="white", bg="green")
+                            self.winner_frame.config(bg="green")
+                            self.winner_frame.place(relx=0.5, rely=0.5, anchor="center", relwidth=1, relheight=0.2)
+                            self.winner_frame.lift()  # Make sure it appears on top
                             player_won = True
                         except Exception as e:
                             print(f"Sound error: {e}")
