@@ -69,9 +69,9 @@ class FencingGui:
         
         # Create winner display frame (initially hidden)
         # Use high stacking order to appear on top of all other widgets
-        self.winner_frame = tk.Frame(self.root, bg="black")
+        self.winner_frame = tk.Frame(self.root, bg="black", borderwidth=4, relief="raised")
         # Higher stacking order value (z-order) ensures it appears on top of other widgets
-        self.winner_frame.place(relx=0.5, rely=0.5, anchor="center", relwidth=1, relheight=0.2)
+        self.winner_frame.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.8, relheight=0.25)
         self.winner_frame.lift()  # Raise to the top of stacking order
         self.winner_frame.place_forget()  # Hide initially
         
@@ -80,7 +80,9 @@ class FencingGui:
             text="", 
             font=self._winner_font, 
             fg="white", 
-            bg="black"
+            bg="black",
+            padx=20,
+            pady=20
         )
         self.winner_label.pack(expand=True, fill="both")
 
@@ -475,7 +477,7 @@ class FencingGui:
                             # Show winner message with RIGHT player color (red)
                             self.winner_label.config(text="PLAYER 2: RIGHT WINS", fg="white", bg="red")
                             self.winner_frame.config(bg="red")
-                            self.winner_frame.place(relx=0.5, rely=0.5, anchor="center", relwidth=1, relheight=0.2)
+                            self.winner_frame.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.8, relheight=0.25)
                             self.winner_frame.lift()  # Make sure it appears on top
                             player_won = True
                         except Exception as e:
@@ -489,7 +491,7 @@ class FencingGui:
                             # Show winner message with LEFT player color (green)
                             self.winner_label.config(text="PLAYER 1: LEFT WINS", fg="white", bg="green")
                             self.winner_frame.config(bg="green")
-                            self.winner_frame.place(relx=0.5, rely=0.5, anchor="center", relwidth=1, relheight=0.2)
+                            self.winner_frame.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.8, relheight=0.25)
                             self.winner_frame.lift()  # Make sure it appears on top
                             player_won = True
                         except Exception as e:
