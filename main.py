@@ -25,8 +25,8 @@ def find_vsm_device():
         print(f"Product: {device.get_product_string()}")
         return device
     except IOError as e:
-        print(f"Error opening device: {e}")
-        print("Is the device connected and do you have the right permissions?")
+        #print(f"Error opening device: {e}")
+        #print("Is the device connected and do you have the right permissions?")
         return None
 
 
