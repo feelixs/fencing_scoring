@@ -335,7 +335,7 @@ class FencingGui:
         # Settings are managed by self.scoring_manager
         last_reported_state = None  # Will store state tuples (left_status, right_status)
         time_last_reported = None  # Initialize to None, set on first valid state
-        last_state_change_time = None
+        last_state_change_time_l, last_state_change_time_r = None, None
         debounce_time = self.scoring_manager.settings.get('debounce_time', DEBOUNCE_TIME)
         start_time = datetime.now()
         last_loop_time = start_time  # Track time for delta calculation
@@ -364,60 +364,75 @@ class FencingGui:
                     if data:
                         current_state_tuple = self.detect_hit_state(data)
 
-                        # --- Delegate Continuous Damage Calculation ---
-                        # Apply based on the state *during* the time delta (last_reported_state tuple)
-                        # Requires last_reported_state to be known
-                        if last_reported_state:
-                            hp_changed_continuous = self.scoring_manager.apply_continuous_damage(
-                                last_state_tuple=last_reported_state,
-                                time_delta=time_delta,
-                                last_state_change_time=last_state_change_time,
-                                current_time=current_time
-                            )
+                        # continuous damage
+                        hp_changed_continuous = self.scoring_manager.apply_continuous_damage(
+                            last_state_tuple=last_reported_state,
+                            time_delta=time_delta,
+                            last_state_change_times=(last_state_change_time_l, last_state_change_time_r),
+                            current_time=current_time
+                        )
 
-                        # --- State Change Reporting & Delegate One-Time Damage ---
-                        if current_state_tuple != last_reported_state:
-                            last_state_change_time = current_time
-                            if time_last_reported is None:
+                        state_changed = False
+                        left_status, right_status = current_state_tuple
+                        left_last, right_last = last_reported_state
+                        last_report_left, last_report_right = None, None
+
+                        if left_status != left_last:
+                            last_report_left = time_last_reported
+                            last_state_change_time_l = current_time
+                            state_changed = True
+                        if right_status != right_last:
+                            last_report_right = time_last_reported
+                            last_state_change_time_r = current_time
+                            state_changed = True
+
+                        if state_changed:
+                            if last_report_left is None:
                                 # first run
-                                within_debounce_time = False
+                                l_within_debounce_time = False
                             else:
-                                within_debounce_time = (current_time - time_last_reported).total_seconds() <= debounce_time
+                                l_within_debounce_time = (current_time - last_report_left).total_seconds() < debounce_time
+                            if last_report_right is None:
+                                # first run
+                                r_within_debounce_time = False
+                            else:
+                                r_within_debounce_time = (current_time - last_report_right).total_seconds() < debounce_time
 
-                            if not within_debounce_time:
+                            if not l_within_debounce_time or not r_within_debounce_time:
                                 elapsed = (current_time - start_time).total_seconds()
-                                left_status, right_status = current_state_tuple
                                 status_message = f"[{elapsed:.2f}s] L: {left_status}, R: {right_status}"
                                 self.output_queue.put({'type': 'status', 'message': status_message})
 
-                                # Determine score messages based on transitions *before* applying damage
-                                last_left, last_right = last_reported_state if last_reported_state else (None, None)
-                                current_left, current_right = current_state_tuple
-
-                                score_messages = []
-                                # Check for transitions that indicate a score
-                                if current_left == "HITTING_OPPONENT" and last_left != "HITTING_OPPONENT":
-                                    score_messages.append("*** SCORE: LEFT PLAYER HIT ***")
-                                if current_right == "HITTING_OPPONENT" and last_right != "HITTING_OPPONENT":
-                                    score_messages.append("*** SCORE: RIGHT PLAYER HIT ***")
-                                if current_left == "HITTING_SELF" and last_left != "HITTING_SELF":
-                                    score_messages.append("*** SCORE: LEFT SELF-HIT ***")
-                                if current_right == "HITTING_SELF" and last_right != "HITTING_SELF":
-                                    score_messages.append("*** SCORE: RIGHT SELF-HIT ***")
-                                # Add messages for disconnects/reconnects? Maybe later.
-
-                                for msg in score_messages:
-                                    self.output_queue.put({'type': 'status', 'message': msg})
-
-                                # Delegate one-time damage application using tuples
-                                hp_changed_one_time = self.scoring_manager.apply_one_time_damage(
-                                    last_state_tuple=last_reported_state,
-                                    current_state_tuple=current_state_tuple
+                                hit_l, hit_r = self.scoring_manager.check_one_time_damage_debounce(
+                                    cur_states=current_state_tuple,
+                                    last_states=last_reported_state,
+                                    l_debounce_valid=not l_within_debounce_time,
+                                    r_debounce_valid=not r_within_debounce_time,
                                 )
+                                if hit_l or hit_r:
+                                    score_messages = []
+                                    # check the type of hit
+                                    if left_status == "HITTING_OPPONENT":
+                                        score_messages.append("*** SCORE: LEFT PLAYER HIT ***")
+                                    if right_status == "HITTING_OPPONENT":
+                                        score_messages.append("*** SCORE: RIGHT PLAYER HIT ***")
+                                    if left_status == "HITTING_SELF":
+                                        score_messages.append("*** SCORE: LEFT SELF-HIT ***")
+                                    if right_status == "HITTING_SELF":
+                                        score_messages.append("*** SCORE: RIGHT SELF-HIT ***")
 
-                                # Update reported state *after* handling the change
-                                last_reported_state = current_state_tuple
-                                time_last_reported = current_time  # Update time of last processed change
+                                    for msg in score_messages:
+                                        self.output_queue.put({'type': 'status', 'message': msg})
+
+                                    # hit damage
+                                    hp_changed_one_time = self.scoring_manager.apply_one_time_damage(
+                                        last_state_tuple=last_reported_state,
+                                        current_state_tuple=current_state_tuple
+                                    )
+
+                                    # Update reported state *after* handling the change
+                                    last_reported_state = current_state_tuple
+                                    time_last_reported = current_time  # Update time of last processed change
 
                     # --- Send HP Update if it Changed this Iteration (either continuous or one-time) ---
                     if hp_changed_continuous or hp_changed_one_time:

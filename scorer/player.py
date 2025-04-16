@@ -1,5 +1,5 @@
 from datetime import timedelta, datetime
-from typing import Optional
+from typing import Optional, Tuple
 
 
 class ScoringManager:
@@ -27,16 +27,15 @@ class ScoringManager:
         """Returns the current HP of both players."""
         return self.left_hp, self.right_hp
 
-    def apply_continuous_damage(self, last_state_tuple, time_delta: timedelta, last_state_change_time: Optional[datetime], current_time):
+    def apply_continuous_damage(self, last_state_tuple, time_delta: timedelta, current_time: datetime, last_state_change_times: Optional[Tuple[datetime, datetime]]):
         """Applies continuous damage based on the individual player states *during* the time delta."""
         if last_state_tuple is None:
             return False # Cannot apply damage if previous state is unknown
 
-        if last_state_change_time is not None:
-            within_debounce = (current_time - last_state_change_time).total_seconds() < self.settings['debounce_time']
-            # doubounce time is in s, todo replace with new var?
-            if within_debounce:
-                return False
+        if last_state_change_times is None:
+            time_last_change_left, time_last_change_right = None, None
+        else:
+            time_last_change_left, time_last_change_right = last_state_change_times
 
         hp_changed = False
         damage_increment = time_delta.total_seconds() * 1000 * self.settings['hit_dmg_per_ms']
@@ -44,17 +43,49 @@ class ScoringManager:
 
         # If Left player was hitting opponent, damage Right player
         if last_left == "HITTING_OPPONENT":
+            if time_last_change_left is not None:
+                if (current_time - time_last_change_left).total_seconds() < self.settings['debounce_time']:
+                    return False
+
             if self.right_hp > 0:
                 self.right_hp = max(0, self.right_hp - damage_increment)
                 hp_changed = True
 
         # If Right player was hitting opponent, damage Left player
         if last_right == "HITTING_OPPONENT":
+            if time_last_change_right is not None:
+                if (current_time - time_last_change_right).total_seconds() < self.settings['debounce_time']:
+                    return False
+
             if self.left_hp > 0:
                 self.left_hp = max(0, self.left_hp - damage_increment)
                 hp_changed = True # Will be True if either condition met
 
         return hp_changed
+
+    @staticmethod
+    def check_one_time_damage_debounce(cur_states, last_states, l_debounce_valid, r_debounce_valid) -> [bool, bool]:
+        left_status, right_status = cur_states
+
+        valid_hits = [False, False]
+        if l_debounce_valid or r_debounce_valid:
+            # Determine score messages based on transitions *before* applying damage
+            last_left, last_right = last_states if last_states else (None, None)
+            if l_debounce_valid:
+                # Check for transitions that indicate a score
+                if left_status == "HITTING_OPPONENT" and last_left != "HITTING_OPPONENT":
+                    valid_hits[0] = True
+                if left_status == "HITTING_SELF" and last_left != "HITTING_SELF":
+                    valid_hits[0] = True  # self hit for left -> left is still doing the action
+
+            if r_debounce_valid:
+                if right_status == "HITTING_OPPONENT" and last_right != "HITTING_OPPONENT":
+                    valid_hits[1] = True
+                if right_status == "HITTING_SELF" and last_right != "HITTING_SELF":
+                    valid_hits[1] = True
+
+        return valid_hits
+
 
     def apply_one_time_damage(self, last_state_tuple, current_state_tuple):
         """Applies one-time damage based on *transitions* into hitting states."""
