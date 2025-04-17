@@ -62,7 +62,7 @@ class ScoringManager:
                 print("WARNING: time_last_change_right was None")
             if self.left_hp > 0:
                 self.left_hp = max(0, self.left_hp - damage_increment)
-                hp_changed = True  # Will be True if either condition met
+                hp_changed = True
 
         return hp_changed
 
