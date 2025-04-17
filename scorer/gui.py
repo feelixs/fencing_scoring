@@ -253,6 +253,7 @@ class FencingGui:
         ).grid(row=0, column=0, padx=5, pady=5, sticky="e")
 
     def apply_settings_and_reset(self):
+        print("Applying settings and resetting game...")
         try:
             new_settings = {
                 'hit_dmg': float(self.hit_dmg_entry.get()),
