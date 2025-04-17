@@ -5,6 +5,7 @@ from pynput import keyboard
 
 class DummyVSMDevice:
     def __init__(self):
+        self.lock = False
         self.stop_event = Event()
         self.l_pressed = False
         self.r_pressed = False
@@ -64,6 +65,9 @@ class DummyVSMDevice:
         return data
 
     def close(self):
+        if self.lock:
+            return
+        self.lock = True
         print("Stopping pynput listener...")
         self.stop_event.set()  # Signal any internal loops using this event (though read() doesn't use it)
         if self.listener:
