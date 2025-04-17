@@ -15,6 +15,7 @@ from scorer.gui import FencingGui
 import sys
 from tester import find_dummy_device
 
+
 def find_vsm_device():
     if '--dummy' in sys.argv:
         return find_dummy_device()
