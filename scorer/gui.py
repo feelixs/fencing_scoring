@@ -297,32 +297,17 @@ class FencingGui:
         """Finds the device and starts the processing thread."""
 
         def thread_target():
-            # Loop until a device is found or the application is closing
-            while not self.stop_event.is_set():
-                self.current_device = self.find_device()  # Assign to self.current_device
-                if self.current_device:
-                    # Device found, start processing
-                    self.process_vsm_data(self.current_device)  # Pass the found device
-                    # If process_vsm_data returns (e.g., due to stop_event or error), loop might continue or exit
-                    break  # Exit thread_target if process_vsm_data finishes normally or is stopped
-                else:
-                    # Device not found initially
-                    self.output_queue.put({'type': 'status', 'message': "VSM device not found. Retrying..."})
-                    # Wait before retrying, but check stop_event periodically
-                    wait_start = time.time()
-                    while time.time() - wait_start < 2 and not self.stop_event.is_set():  # Wait up to 2 seconds
-                        time.sleep(0.1)
+            vsm_device = self.find_device()
+            if vsm_device:
+                return self.process_vsm_data(vsm_device)  # this is a blocking call (while loop)
+            else:
+                self.output_queue.put({'type': 'status', 'message': "VSM device not found."})
+                self.output_queue.put({'type': 'status', 'message': "Check connection/permissions."})
 
-            # If the loop exits because stop_event was set
-            if self.stop_event.is_set():
-                self.output_queue.put({'type': 'status', 'message': "Device search cancelled."})
-
-            # Ensure device is closed if thread exits unexpectedly after finding one
-            # Note: process_vsm_data already has a finally block for closing
-            # if self.current_device:
-            #     try: self.current_device.close()
-            #     except Exception: pass # Ignore errors during cleanup
-            # self.current_device = None
+            while not vsm_device:
+                time.sleep(1)  # Wait before retrying
+                vsm_device = self.find_device()
+            return self.process_vsm_data(vsm_device)
 
         thread = Thread(target=thread_target, daemon=True)
         thread.start()
