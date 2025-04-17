@@ -7,4 +7,4 @@ MAX_HP = 125
 
 DEBOUNCE_TIME = 1
 
-msBeforeContDmg = 200
+msBeforeContDmg = 500
