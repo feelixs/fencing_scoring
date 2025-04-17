@@ -36,11 +36,11 @@ class DummyVSMDevice:
     def read(self, size, timeout_ms=None):
         with self.state_lock:
             if self.current_state == "leftgothit":
-                data = [0, 0, 4, 114] + [4, 114] * 19  # Left hitting right pattern
+                data = [0, 0, 4, 114]  # Left hitting right pattern
             elif self.current_state == "rightgothit":
-                data = [0, 0, 44, 80] + [44, 80] * 19  # Right hitting left pattern
+                data = [0, 0, 44, 80]  # Right hitting left pattern
             else:  # neutral
-                data = [0, 0, 4, 80] + [4, 80] * 19   # Neutral pattern
+                data = [0, 0, 4, 80]  # Neutral pattern
         
         # Pad to 42 bytes if needed
         data = data[:42]
