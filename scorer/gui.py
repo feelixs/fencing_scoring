@@ -333,11 +333,11 @@ class FencingGui:
         into the output queue. Runs until stop_event is set.
         """
         # Settings are managed by self.scoring_manager
-        last_reported_state = None  # Will store state tuples (left_status, right_status)
+        last_reported_state = (None, None)  # Will store state tuples (left_status, right_status)
         time_last_reported = None  # Initialize to None, set on first valid state
-        last_state_change_time_l, last_state_change_time_r = None, None
         debounce_time = self.scoring_manager.settings.get('debounce_time', DEBOUNCE_TIME)
         start_time = datetime.now()
+        last_state_change_time_l, last_state_change_time_r = start_time, start_time
         last_loop_time = start_time  # Track time for delta calculation
 
         # Initial status and health update using ScoringManager
@@ -454,6 +454,8 @@ class FencingGui:
                     self.output_queue.put({'type': 'status', 'message': "Device reconnected. Resuming monitoring..."})
             # display "player x won" in bold across the screen
         except Exception as e:
+            import traceback
+            print(traceback.format_exc())
             self.output_queue.put({'type': 'status', 'message': f"Error in device loop: {e}"})
         finally:
             self.output_queue.put({'type': 'status', 'message': "Device monitoring stopped."})
