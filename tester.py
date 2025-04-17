@@ -1,7 +1,6 @@
 import time
-import hid
 from threading import Thread, Event
-import keyboard  # Using keyboard library for cross-platform key detection
+import keyboard
 
 
 class DummyVSMDevice:
