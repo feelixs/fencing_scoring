@@ -3,6 +3,7 @@ import hid
 from threading import Thread, Event
 import keyboard  # Using keyboard library for cross-platform key detection
 
+
 class DummyVSMDevice:
     def __init__(self):
         self.stop_event = Event()
@@ -37,11 +38,13 @@ class DummyVSMDevice:
         self.stop_event.set()
         self.key_thread.join()
 
+
 def find_dummy_device():
     """Replacement for find_vsm_device that returns our dummy device"""
     device = DummyVSMDevice()
     print("Using DUMMY VSM device - press 'l' or 'r' keys to simulate hits")
     return device
+
 
 if __name__ == "__main__":
     # Simple test of the dummy device
