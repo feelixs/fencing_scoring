@@ -51,6 +51,7 @@ class FencingGui:
         # Instantiate the ScoringManager
         self.scoring_manager = ScoringManager(self.settings)
 
+        self.current_device = None # Store the active device instance
         self.device_thread = self.start_device_thread()
 
         self._configure_styles()
@@ -295,17 +296,32 @@ class FencingGui:
         """Finds the device and starts the processing thread."""
 
         def thread_target():
-            vsm_device = self.find_device()
-            if vsm_device:
-                return self.process_vsm_data(vsm_device)  # this is a blocking call (while loop)
-            else:
-                self.output_queue.put({'type': 'status', 'message': "VSM device not found."})
-                self.output_queue.put({'type': 'status', 'message': "Check connection/permissions."})
+            # Loop until a device is found or the application is closing
+            while not self.stop_event.is_set():
+                self.current_device = self.find_device() # Assign to self.current_device
+                if self.current_device:
+                    # Device found, start processing
+                    self.process_vsm_data(self.current_device) # Pass the found device
+                    # If process_vsm_data returns (e.g., due to stop_event or error), loop might continue or exit
+                    break # Exit thread_target if process_vsm_data finishes normally or is stopped
+                else:
+                    # Device not found initially
+                    self.output_queue.put({'type': 'status', 'message': "VSM device not found. Retrying..."})
+                    # Wait before retrying, but check stop_event periodically
+                    wait_start = time.time()
+                    while time.time() - wait_start < 2 and not self.stop_event.is_set(): # Wait up to 2 seconds
+                        time.sleep(0.1)
+            
+            # If the loop exits because stop_event was set
+            if self.stop_event.is_set():
+                 self.output_queue.put({'type': 'status', 'message': "Device search cancelled."})
 
-            while not vsm_device:
-                time.sleep(1)  # Wait before retrying
-                vsm_device = self.find_device()
-            return self.process_vsm_data(vsm_device)
+            # Ensure device is closed if thread exits unexpectedly after finding one
+            # Note: process_vsm_data already has a finally block for closing
+            # if self.current_device:
+            #     try: self.current_device.close()
+            #     except Exception: pass # Ignore errors during cleanup
+            # self.current_device = None
 
         thread = Thread(target=thread_target, daemon=True)
         thread.start()
@@ -313,13 +329,30 @@ class FencingGui:
 
     def restart_device_thread(self, current_thread=None):
         """Stops the current device thread and starts a new one with updated settings."""
-        # Stop the current thread if it's running
-        if current_thread:
-            self.stop_event.set()
-            current_thread.join(timeout=1.0)
+        print("Restarting device thread...")
+        # 1. Signal the thread to stop
+        self.stop_event.set()
 
-        # Reset the stop event
+        # 2. Explicitly close the current device *before* joining
+        #    This helps ensure resources like the pynput listener are released promptly.
+        if self.current_device:
+            print(f"Closing current device: {self.current_device}")
+            try:
+                self.current_device.close()
+            except Exception as e:
+                print(f"Error closing device during restart: {e}")
+            self.current_device = None # Clear the reference
+
+        # 3. Wait for the old thread to terminate
+        if current_thread and current_thread.is_alive():
+            print("Joining old device thread...")
+            current_thread.join(timeout=2.0) # Increased timeout slightly
+            if current_thread.is_alive():
+                 print("Warning: Old device thread did not terminate cleanly.")
+
+        # 4. Reset the stop event for the new thread
         self.stop_event.clear()
+        print("Stop event cleared.")
 
         # Start a new thread
         return self.start_device_thread()
@@ -456,13 +489,25 @@ class FencingGui:
                         except Exception as close_err:
                             # Log if closing fails, but continue trying to reconnect
                             print(f"Error closing device during reconnect: {close_err}")
-                    device = None # Set to None before attempting to find a new one
-                    while not self.stop_event.is_set() and not device: # Check stop_event too
-                        time.sleep(1)
-                        device = self.find_device() # Creates a new instance (dummy or real)
+                    self.current_device = None # Clear the reference in GUI
+                    device = None # Local variable in this function
                     
+                    # Attempt to find a new device
+                    while not self.stop_event.is_set():
+                        new_device = self.find_device() # Creates a new instance (dummy or real)
+                        if new_device:
+                            device = new_device
+                            self.current_device = device # Update GUI reference
+                            break # Found a device
+                        # Wait a bit before retrying
+                        time.sleep(1) 
+
                     if self.stop_event.is_set(): # Exit if stopped during reconnect attempt
-                        break 
+                        break
+                    
+                    if not device: # If still no device after trying, exit loop
+                         self.output_queue.put({'type': 'status', 'message': "Failed to reconnect. Stopping monitoring."})
+                         break
 
                     # Device reconnected, restart the loop
                     # Device reconnected, restart the loop
@@ -553,7 +598,21 @@ class FencingGui:
     # Function to handle window closing
     def on_closing(self):
         print("Closing application...")
-        self.stop_event.set()  # Signal the thread to stop
-        if self.device_thread:
-            self.device_thread.join(timeout=1.0)  # Wait briefly for thread cleanup
+        self.stop_event.set()  # Signal the processing thread to stop
+
+        # Explicitly close the device if it exists
+        if self.current_device:
+             print("Closing device on exit...")
+             try:
+                 self.current_device.close()
+             except Exception as e:
+                 print(f"Error closing device on exit: {e}")
+             self.current_device = None
+
+        # Wait for the thread to finish
+        if self.device_thread and self.device_thread.is_alive():
+            print("Joining device thread on exit...")
+            self.device_thread.join(timeout=1.0) # Wait briefly
+
+        print("Destroying root window.")
         self.root.destroy()
