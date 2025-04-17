@@ -30,7 +30,7 @@ class ScoringManager:
     def apply_continuous_damage(self, last_state_tuple, time_delta: timedelta, current_time: datetime, last_state_change_times: Optional[Tuple[datetime, datetime]]):
         """Applies continuous damage based on the individual player states *during* the time delta."""
         if last_state_tuple is None:
-            return False # Cannot apply damage if previous state is unknown
+            return False  # Cannot apply damage if previous state is unknown
 
         if last_state_change_times is None:
             time_last_change_left, time_last_change_right = None, None
