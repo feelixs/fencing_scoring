@@ -431,14 +431,12 @@ class FencingGui:
                                 # first run
                                 l_within_debounce_time = False
                             else:
-                                l_within_debounce_time = (
-                                                                     current_time - last_report_left).total_seconds() < debounce_time
+                                l_within_debounce_time = (current_time - last_report_left).total_seconds() < debounce_time
                             if last_report_right is None:
                                 # first run
                                 r_within_debounce_time = False
                             else:
-                                r_within_debounce_time = (
-                                                                     current_time - last_report_right).total_seconds() < debounce_time
+                                r_within_debounce_time = (current_time - last_report_right).total_seconds() < debounce_time
 
                             if not l_within_debounce_time or not r_within_debounce_time:
                                 elapsed = (current_time - start_time).total_seconds()
