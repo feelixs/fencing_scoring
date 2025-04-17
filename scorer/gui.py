@@ -342,7 +342,7 @@ class FencingGui:
                 self.current_device.close()
             except Exception as e:
                 print(f"Error closing device during restart: {e}")
-            self.current_device = None # Clear the reference
+            self.current_device = None  # Clear the reference
 
         # 3. Wait for the old thread to terminate
         if current_thread and current_thread.is_alive():
