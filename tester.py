@@ -9,6 +9,8 @@ class DummyVSMDevice:
         self.l_pressed = False
         self.r_pressed = False
         self.state_lock = Lock()
+        self._close_lock = Lock() # Lock for ensuring close runs once
+        self._closing = False     # Flag to indicate close is in progress/done
         self.listener = keyboard.Listener(
             on_press=self._on_press,
             on_release=self._on_release
@@ -64,24 +66,43 @@ class DummyVSMDevice:
         return data
 
     def close(self):
+        with self._close_lock:
+            if self._closing:
+                print("Close already in progress or finished.")
+                return # Already closing/closed
+            self._closing = True # Mark as closing
+
+            # Get the listener reference and immediately clear the instance variable
+            listener_to_close = self.listener
+            self.listener = None
+
         print("Stopping pynput listener...")
-        self.stop_event.set()  # Signal any internal loops using this event (though read() doesn't use it)
-        if self.listener:
-            self.listener.stop()
-            # Wait for the listener thread to actually terminate
-            # This is crucial to prevent conflicts when restarting
+        self.stop_event.set() # Signal any internal loops
+
+        if listener_to_close:
             try:
-                # Check if the listener thread is alive before joining
-                # pynput listener might already be stopped/joined internally sometimes
-                if self.listener.is_alive():
-                    time.sleep(1)  # Give it a moment to stop
-                    self.listener.join()
-                    if self.listener.is_alive():
-                        print("Warning: pynput listener thread did not join cleanly.")
-                print("pynput listener stopped.")
+                # Stop the listener
+                listener_to_close.stop()
+
+                # Join the listener thread
+                # Check if the current thread is the listener thread itself to avoid deadlock
+                import threading
+                if threading.current_thread() != listener_to_close.thread:
+                     # Wait for the listener thread to actually terminate
+                     # This is crucial to prevent conflicts when restarting
+                     listener_to_close.join(timeout=2.0) # Use a timeout
+                     if listener_to_close.is_alive():
+                         print("Warning: pynput listener thread did not join cleanly after timeout.")
+                     else:
+                         print("pynput listener stopped and joined.")
+                else:
+                     print("Skipping join() because close() called from listener thread itself.")
+
             except Exception as e:
-                print(f"Error joining pynput listener thread: {e}")
-            self.listener = None  # Clear the reference
+                # Catch potential errors during stop/join
+                print(f"Error stopping/joining pynput listener thread: {e}")
+        else:
+            print("No active pynput listener to stop.")
 
 
 def find_dummy_device():
