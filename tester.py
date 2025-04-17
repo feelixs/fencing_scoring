@@ -1,32 +1,46 @@
 import time
-from threading import Thread, Event
-import keyboard
+from threading import Thread, Event, Lock
+from pynput import keyboard
 
 
 class DummyVSMDevice:
     def __init__(self):
         self.stop_event = Event()
         self.current_state = "neutral"
-        self.key_thread = Thread(target=self._monitor_keys, daemon=True)
-        self.key_thread.start()
+        self.state_lock = Lock()
+        self.listener = keyboard.Listener(
+            on_press=self._on_press,
+            on_release=self._on_release
+        )
+        self.listener.start()
 
-    def _monitor_keys(self):
-        while not self.stop_event.is_set():
-            if keyboard.is_pressed('l'):
-                self.current_state = "leftgothit"
-            elif keyboard.is_pressed('r'):
-                self.current_state = "rightgothit"
-            else:
-                self.current_state = "neutral"
-            time.sleep(0.05)  # Reduce CPU usage
+    def _on_press(self, key):
+        try:
+            if key.char == 'l':
+                with self.state_lock:
+                    self.current_state = "leftgothit"
+            elif key.char == 'r':
+                with self.state_lock:
+                    self.current_state = "rightgothit"
+        except AttributeError:
+            pass
+
+    def _on_release(self, key):
+        try:
+            if key.char in ('l', 'r'):
+                with self.state_lock:
+                    self.current_state = "neutral"
+        except AttributeError:
+            pass
 
     def read(self, size, timeout_ms=None):
-        if self.current_state == "leftgothit":
-            data = [0, 0, 4, 114] + [4, 114] * 19  # Left hitting right pattern
-        elif self.current_state == "rightgothit":
-            data = [0, 0, 44, 80] + [44, 80] * 19  # Right hitting left pattern
-        else:  # neutral
-            data = [0, 0, 4, 80] + [4, 80] * 19   # Neutral pattern
+        with self.state_lock:
+            if self.current_state == "leftgothit":
+                data = [0, 0, 4, 114] + [4, 114] * 19  # Left hitting right pattern
+            elif self.current_state == "rightgothit":
+                data = [0, 0, 44, 80] + [44, 80] * 19  # Right hitting left pattern
+            else:  # neutral
+                data = [0, 0, 4, 80] + [4, 80] * 19   # Neutral pattern
         
         # Pad to 42 bytes if needed
         data = data[:42]
@@ -35,7 +49,7 @@ class DummyVSMDevice:
 
     def close(self):
         self.stop_event.set()
-        self.key_thread.join()
+        self.listener.stop()
 
 
 def find_dummy_device():
