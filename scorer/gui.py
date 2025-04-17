@@ -449,11 +449,22 @@ class FencingGui:
                     last_loop_time = current_time
                 except IOError as e:
                     # Handle device read error (e.g., device disconnected)
-                    self.output_queue.put({'type': 'status', 'message': f"Device monitoring paused: Please reconnect the device."})
-                    device = None
-                    while not device:
+                    self.output_queue.put({'type': 'status', 'message': f"Device read error: {e}. Attempting to reconnect..."})
+                    if device:
+                        try:
+                            device.close() # Attempt to close the old device/listener first
+                        except Exception as close_err:
+                            # Log if closing fails, but continue trying to reconnect
+                            print(f"Error closing device during reconnect: {close_err}")
+                    device = None # Set to None before attempting to find a new one
+                    while not self.stop_event.is_set() and not device: # Check stop_event too
                         time.sleep(1)
-                        device = self.find_device()
+                        device = self.find_device() # Creates a new instance (dummy or real)
+                    
+                    if self.stop_event.is_set(): # Exit if stopped during reconnect attempt
+                        break 
+
+                    # Device reconnected, restart the loop
                     # Device reconnected, restart the loop
                     time_last_reported = None
                     last_reported_state = (None, None)  # reset these
