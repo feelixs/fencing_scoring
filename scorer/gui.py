@@ -11,7 +11,7 @@ from scorer.settings import (
     GLOBAL_HIT_DMG_SELF,
     GLOBAL_HIT_DMG_PER_MILLISECOND,
     MAX_HP,
-    DEBOUNCE_TIME,
+    DEBOUNCE_TIME_SEC,
 )
 
 
@@ -46,7 +46,7 @@ class FencingGui:
             'hit_dmg_self': GLOBAL_HIT_DMG_SELF,
             'hit_dmg_per_ms': GLOBAL_HIT_DMG_PER_MILLISECOND,
             'max_hp': MAX_HP,
-            'debounce_time': DEBOUNCE_TIME
+            'debounce_time': DEBOUNCE_TIME_SEC
         }
         # Instantiate the ScoringManager
         self.scoring_manager = ScoringManager(self.settings)
@@ -369,7 +369,7 @@ class FencingGui:
         # Settings are managed by self.scoring_manager
         last_reported_state = (None, None)  # Will store state tuples (left_status, right_status)
         time_last_reported = None  # Initialize to None, set on first valid state
-        debounce_time = self.scoring_manager.settings.get('debounce_time', DEBOUNCE_TIME)
+        debounce_time = self.scoring_manager.settings.get('debounce_time', DEBOUNCE_TIME_SEC)
         start_time = datetime.now()
         last_state_change_time_l, last_state_change_time_r = start_time, start_time
         last_loop_time = start_time  # Track time for delta calculation
