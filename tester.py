@@ -64,8 +64,23 @@ class DummyVSMDevice:
         return data
 
     def close(self):
-        self.stop_event.set()
-        self.listener.stop()
+        print("Stopping pynput listener...")
+        self.stop_event.set() # Signal any internal loops using this event (though read() doesn't use it)
+        if self.listener:
+            self.listener.stop()
+            # Wait for the listener thread to actually terminate
+            # This is crucial to prevent conflicts when restarting
+            try:
+                # Check if the listener thread is alive before joining
+                # pynput listener might already be stopped/joined internally sometimes
+                if self.listener.is_alive():
+                     self.listener.join(timeout=1.0) # Wait up to 1 second
+                     if self.listener.is_alive():
+                         print("Warning: pynput listener thread did not join cleanly.")
+                print("pynput listener stopped.")
+            except Exception as e:
+                 print(f"Error joining pynput listener thread: {e}")
+            self.listener = None # Clear the reference
 
 
 def find_dummy_device():
