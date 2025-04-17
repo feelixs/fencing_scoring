@@ -458,7 +458,6 @@ class FencingGui:
                     time_last_reported = None
                     last_reported_state = (None, None)  # reset these
                     self.output_queue.put({'type': 'status', 'message': "Device reconnected. Resuming monitoring..."})
-            # display "player x won" in bold across the screen
         except Exception as e:
             import traceback
             print(traceback.format_exc())
