@@ -378,15 +378,19 @@ class FencingGui:
                         last_report_left, last_report_right = None, None
 
                         if left_status != left_last:
+                            print(f"Left status changed: {left_last} -> {left_status}")
                             last_report_left = time_last_reported
                             last_state_change_time_l = current_time
+                            left_last = left_status
                             state_changed = True
                         if right_status != right_last:
                             last_report_right = time_last_reported
                             last_state_change_time_r = current_time
+                            right_last = right_status
                             state_changed = True
 
                         if state_changed:
+                            last_reported_state = (left_last, right_last)  # Update last reported state
                             if last_report_left is None:
                                 # first run
                                 l_within_debounce_time = False
