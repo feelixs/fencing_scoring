@@ -383,7 +383,9 @@ class FencingGui:
                             last_state_change_time_l = current_time
                             left_last = left_status
                             state_changed = True
+
                         if right_status != right_last:
+                            print(f"Right status changed: {right_last} -> {right_status}")
                             last_report_right = time_last_reported
                             last_state_change_time_r = current_time
                             right_last = right_status
