@@ -188,7 +188,7 @@ class FencingGui:
         screen_width = self.root.winfo_width() # Use actual window width after layout
         # Bars are in columns 0 and 1, each with padx=20. Total padding = 40.
         # Each column gets roughly half the remaining width.
-        bar_thickness = max(50, (screen_width - 40) // 2) # Ensure a minimum thickness
+        bar_thickness = max(50, (screen_width - 40) // 2)  # Ensure a minimum thickness
 
         # Define styles for the progress bars
         self.style.layout(
