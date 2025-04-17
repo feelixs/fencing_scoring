@@ -43,8 +43,8 @@ class DummyVSMDevice:
                 data = [0, 0, 4, 80]  # Neutral pattern
         
         # Pad to 42 bytes if needed
-        data = data[:42]
-        data += [0] * (42 - len(data))
+        data = data[:size]
+        data += [0] * (size - len(data))
         return data
 
     def close(self):
