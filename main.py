@@ -90,5 +90,9 @@ def detect_hit_state(data):
 
 if __name__ == "__main__":
     print("Running Scorer. Press Ctrl+C to quit")
-    gui = FencingGui(find_vsm_device, detect_hit_state)
-    gui.run()
+    try:
+        gui = FencingGui(find_vsm_device, detect_hit_state)
+        gui.run()
+    except:
+        import traceback
+        print(traceback.format_exc())
