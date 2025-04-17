@@ -45,6 +45,7 @@ class DummyVSMDevice:
         # Pad to 42 bytes if needed
         data = data[:size]
         data += [0] * (size - len(data))
+        time.sleep(0.01)
         return data
 
     def close(self):
