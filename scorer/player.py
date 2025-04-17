@@ -59,7 +59,7 @@ class ScoringManager:
 
             if self.left_hp > 0:
                 self.left_hp = max(0, self.left_hp - damage_increment)
-                hp_changed = True # Will be True if either condition met
+                hp_changed = True  # Will be True if either condition met
 
         return hp_changed
 
