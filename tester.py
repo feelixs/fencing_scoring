@@ -6,7 +6,8 @@ from pynput import keyboard
 class DummyVSMDevice:
     def __init__(self):
         self.stop_event = Event()
-        self.current_state = "neutral"
+        self.l_pressed = False
+        self.r_pressed = False
         self.state_lock = Lock()
         self.listener = keyboard.Listener(
             on_press=self._on_press,
@@ -16,34 +17,48 @@ class DummyVSMDevice:
 
     def _on_press(self, key):
         try:
-            if key.char == 'l':
-                with self.state_lock:
-                    self.current_state = "leftgothit"
-            elif key.char == 'r':
-                with self.state_lock:
-                    self.current_state = "rightgothit"
+            with self.state_lock:
+                if key.char == 'l':
+                    self.l_pressed = True
+                elif key.char == 'r':
+                    self.r_pressed = True
         except AttributeError:
-            pass
+            pass # Ignore non-character keys
 
     def _on_release(self, key):
         try:
-            if key.char in ('l', 'r'):
-                with self.state_lock:
-                    self.current_state = "neutral"
+            with self.state_lock:
+                if key.char == 'l':
+                    self.l_pressed = False
+                elif key.char == 'r':
+                    self.r_pressed = False
         except AttributeError:
-            pass
+            pass # Ignore non-character keys
 
     def read(self, size, timeout_ms=None):
-        with self.state_lock:
-            if self.current_state == "leftgothit":
-                data = [0, 0, 4, 114]  # Left hitting right pattern
-            elif self.current_state == "rightgothit":
-                data = [0, 0, 44, 80]  # Right hitting left pattern
-            else:  # neutral
-                data = [0, 0, 4, 80]  # Neutral pattern
+        # Simulate the ~100ms delay or blocking read of the real device
+        time.sleep(0.1) 
         
-        # Pad to 42 bytes if needed
-        data = data[:size]
+        with self.state_lock:
+            if self.l_pressed and self.r_pressed:
+                # Corresponds to "both_hitting" state (Left hits Right, Right hits Left)
+                # From states/both_hitting: data[2]=44, data[3]=114
+                data = [0, 0, 44, 114] 
+            elif self.l_pressed:
+                # Corresponds to "leftgothit" state (Left hits Right)
+                # From states/leftgothit: data[2]=4, data[3]=114
+                data = [0, 0, 4, 114]  
+            elif self.r_pressed:
+                # Corresponds to "rightgothit" state (Right hits Left)
+                # From states/rightgothit: data[2]=44, data[3]=80
+                data = [0, 0, 44, 80]  
+            else:  # Neither pressed
+                # Corresponds to "neutral" state
+                # From states/neutral: data[2]=4, data[3]=80
+                data = [0, 0, 4, 80]  
+
+        # Pad to the requested size (typically 42 bytes)
+        data = data[:size] # Ensure we don't exceed size
         data += [0] * (size - len(data))
         time.sleep(0.01)
         return data
