@@ -41,7 +41,7 @@ class DummyVSMDevice:
 def find_dummy_device():
     """Replacement for find_vsm_device that returns our dummy device"""
     print("Using DUMMY VSM device - press 'l' or 'r' keys to simulate hits")
-    return  DummyVSMDevice()
+    return DummyVSMDevice()
 
 
 if __name__ == "__main__":
