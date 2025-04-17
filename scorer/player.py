@@ -44,14 +44,18 @@ class ScoringManager:
 
         # If Left player was hitting opponent, damage Right player
         if last_left == "HITTING_OPPONENT":
-            # Apply continuous damage with no delay
+            if time_last_change_left is not None:
+                if (current_time - time_last_change_left).total_seconds() < msBeforeContDmg / 1000:
+                    return False
             if self.right_hp > 0:
                 self.right_hp = max(0, self.right_hp - damage_increment)
                 hp_changed = True
 
         # If Right player was hitting opponent, damage Left player
         if last_right == "HITTING_OPPONENT":
-            # Apply continuous damage with no delay
+            if time_last_change_left is not None:
+                if (current_time - time_last_change_left).total_seconds() < msBeforeContDmg / 1000:
+                    return False
             if self.left_hp > 0:
                 self.left_hp = max(0, self.left_hp - damage_increment)
                 hp_changed = True  # Will be True if either condition met
