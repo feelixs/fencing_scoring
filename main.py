@@ -12,7 +12,13 @@ from scorer.gui import FencingGui
 # diff beeps for each person being hit?
 
 
+import sys
+from tester import find_dummy_device
+
 def find_vsm_device():
+    if '--dummy' in sys.argv:
+        return find_dummy_device()
+        
     # Vendor ID and Product ID for the VSM device
     vendor_id = 0x04bc
     product_id = 0xc001
