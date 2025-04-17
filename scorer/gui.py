@@ -51,7 +51,7 @@ class FencingGui:
         # Instantiate the ScoringManager
         self.scoring_manager = ScoringManager(self.settings)
 
-        self.current_device = None # Store the active device instance
+        self.current_device = None  # Store the active device instance
         self.device_thread = self.start_device_thread()
 
         self._configure_styles()
@@ -63,11 +63,11 @@ class FencingGui:
         self.root.grid_rowconfigure(1, weight=1)  # Progress bars row
         self.root.grid_rowconfigure(2, weight=0)  # Combined Status & Settings row
         # Row 3 is no longer used
-        
+
         # Track if HP has reached zero to play sound only once
         self.left_hp_zero = False
         self.right_hp_zero = False
-        
+
         # Create winner display frame (initially hidden)
         # Use high stacking order to appear on top of all other widgets
         self.winner_frame = tk.Frame(self.root, bg="black", borderwidth=4, relief="raised")
@@ -75,12 +75,12 @@ class FencingGui:
         self.winner_frame.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.8, relheight=0.25)
         self.winner_frame.lift()  # Raise to the top of stacking order
         self.winner_frame.place_forget()  # Hide initially
-        
+
         self.winner_label = tk.Label(
-            self.winner_frame, 
-            text="", 
-            font=self._winner_font, 
-            fg="white", 
+            self.winner_frame,
+            text="",
+            font=self._winner_font,
+            fg="white",
             bg="black",
             padx=20,
             pady=20
@@ -138,7 +138,7 @@ class FencingGui:
             font=self._status_font,
             justify=tk.CENTER,
             anchor=tk.CENTER,
-            wraplength=600 # Adjust wrap length based on potentially smaller area
+            wraplength=600  # Adjust wrap length based on potentially smaller area
         )
         # Place status label within its frame using grid for better alignment
         self.status_label.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
@@ -186,7 +186,7 @@ class FencingGui:
         # Calculate desired thickness based on screen width and padding
         # Need to update geometry first to get accurate width
         self.root.update_idletasks()
-        screen_width = self.root.winfo_width() # Use actual window width after layout
+        screen_width = self.root.winfo_width()  # Use actual window width after layout
         # Bars are in columns 0 and 1, each with padx=20. Total padding = 40.
         # Each column gets roughly half the remaining width.
         bar_thickness = max(50, (screen_width - 40) // 2)  # Ensure a minimum thickness
@@ -212,13 +212,13 @@ class FencingGui:
             style="Green.Vertical.TProgressbar",
             troughcolor='lightgray',
             background='green',
-            thickness=bar_thickness # Use calculated thickness
+            thickness=bar_thickness  # Use calculated thickness
         )
         self.style.configure(
             style="Red.Vertical.TProgressbar",
             troughcolor='lightgray',
             background='red',
-            thickness=bar_thickness # Use calculated thickness
+            thickness=bar_thickness  # Use calculated thickness
         )
 
     def _setup_labels(self):
@@ -270,11 +270,11 @@ class FencingGui:
             # Update settings in ScoringManager and reset HP
             self.scoring_manager.update_settings(new_settings)
             self.scoring_manager.reset()
-            
+
             # Reset sound flags when game is reset
             self.left_hp_zero = False
             self.right_hp_zero = False
-            
+
             # Hide winner display
             self.winner_frame.place_forget()
 
@@ -299,23 +299,23 @@ class FencingGui:
         def thread_target():
             # Loop until a device is found or the application is closing
             while not self.stop_event.is_set():
-                self.current_device = self.find_device() # Assign to self.current_device
+                self.current_device = self.find_device()  # Assign to self.current_device
                 if self.current_device:
                     # Device found, start processing
-                    self.process_vsm_data(self.current_device) # Pass the found device
+                    self.process_vsm_data(self.current_device)  # Pass the found device
                     # If process_vsm_data returns (e.g., due to stop_event or error), loop might continue or exit
-                    break # Exit thread_target if process_vsm_data finishes normally or is stopped
+                    break  # Exit thread_target if process_vsm_data finishes normally or is stopped
                 else:
                     # Device not found initially
                     self.output_queue.put({'type': 'status', 'message': "VSM device not found. Retrying..."})
                     # Wait before retrying, but check stop_event periodically
                     wait_start = time.time()
-                    while time.time() - wait_start < 2 and not self.stop_event.is_set(): # Wait up to 2 seconds
+                    while time.time() - wait_start < 2 and not self.stop_event.is_set():  # Wait up to 2 seconds
                         time.sleep(0.1)
-            
+
             # If the loop exits because stop_event was set
             if self.stop_event.is_set():
-                 self.output_queue.put({'type': 'status', 'message': "Device search cancelled."})
+                self.output_queue.put({'type': 'status', 'message': "Device search cancelled."})
 
             # Ensure device is closed if thread exits unexpectedly after finding one
             # Note: process_vsm_data already has a finally block for closing
@@ -347,9 +347,9 @@ class FencingGui:
         # 3. Wait for the old thread to terminate
         if current_thread and current_thread.is_alive():
             print("Joining old device thread...")
-            current_thread.join(timeout=2.0) # Increased timeout slightly
+            current_thread.join(timeout=2.0)  # Increased timeout slightly
             if current_thread.is_alive():
-                 print("Warning: Old device thread did not terminate cleanly.")
+                print("Warning: Old device thread did not terminate cleanly.")
 
         # 4. Reset the stop event for the new thread
         self.stop_event.clear()
@@ -431,12 +431,14 @@ class FencingGui:
                                 # first run
                                 l_within_debounce_time = False
                             else:
-                                l_within_debounce_time = (current_time - last_report_left).total_seconds() < debounce_time
+                                l_within_debounce_time = (
+                                                                     current_time - last_report_left).total_seconds() < debounce_time
                             if last_report_right is None:
                                 # first run
                                 r_within_debounce_time = False
                             else:
-                                r_within_debounce_time = (current_time - last_report_right).total_seconds() < debounce_time
+                                r_within_debounce_time = (
+                                                                     current_time - last_report_right).total_seconds() < debounce_time
 
                             if not l_within_debounce_time or not r_within_debounce_time:
                                 elapsed = (current_time - start_time).total_seconds()
@@ -483,32 +485,34 @@ class FencingGui:
                     last_loop_time = current_time
                 except IOError as e:
                     # Handle device read error (e.g., device disconnected)
-                    self.output_queue.put({'type': 'status', 'message': f"Device read error: {e}. Attempting to reconnect..."})
+                    self.output_queue.put(
+                        {'type': 'status', 'message': f"Device read error: {e}. Attempting to reconnect..."})
                     if device:
                         try:
-                            device.close() # Attempt to close the old device/listener first
+                            device.close()  # Attempt to close the old device/listener first
                         except Exception as close_err:
                             # Log if closing fails, but continue trying to reconnect
                             print(f"Error closing device during reconnect: {close_err}")
-                    self.current_device = None # Clear the reference in GUI
-                    device = None # Local variable in this function
-                    
+                    self.current_device = None  # Clear the reference in GUI
+                    device = None  # Local variable in this function
+
                     # Attempt to find a new device
                     while not self.stop_event.is_set():
-                        new_device = self.find_device() # Creates a new instance (dummy or real)
+                        new_device = self.find_device()  # Creates a new instance (dummy or real)
                         if new_device:
                             device = new_device
-                            self.current_device = device # Update GUI reference
-                            break # Found a device
+                            self.current_device = device  # Update GUI reference
+                            break  # Found a device
                         # Wait a bit before retrying
-                        time.sleep(1) 
+                        time.sleep(1)
 
-                    if self.stop_event.is_set(): # Exit if stopped during reconnect attempt
+                    if self.stop_event.is_set():  # Exit if stopped during reconnect attempt
                         break
-                    
-                    if not device: # If still no device after trying, exit loop
-                         self.output_queue.put({'type': 'status', 'message': "Failed to reconnect. Stopping monitoring."})
-                         break
+
+                    if not device:  # If still no device after trying, exit loop
+                        self.output_queue.put(
+                            {'type': 'status', 'message': "Failed to reconnect. Stopping monitoring."})
+                        break
 
                     # Device reconnected, restart the loop
                     # Device reconnected, restart the loop
@@ -561,7 +565,7 @@ class FencingGui:
                             player_won = True
                         except Exception as e:
                             print(f"Sound error: {e}")
-                    
+
                     if right_hp == 0 and not self.right_hp_zero:
                         self.right_hp_zero = True
                         try:
@@ -575,13 +579,13 @@ class FencingGui:
                             player_won = True
                         except Exception as e:
                             print(f"Sound error: {e}")
-                    
+
                     # Reset the flags if HP is restored
                     if left_hp > 0:
                         self.left_hp_zero = False
                     if right_hp > 0:
                         self.right_hp_zero = False
-                    
+
                     # Styles are now static (Green for left, Red for right)
                     # No need to update style based on health anymore
                 self.root.update_idletasks()  # Update GUI immediately
@@ -603,17 +607,17 @@ class FencingGui:
 
         # Explicitly close the device if it exists
         if self.current_device:
-             print("Closing device on exit...")
-             try:
-                 self.current_device.close()
-             except Exception as e:
-                 print(f"Error closing device on exit: {e}")
-             self.current_device = None
+            print("Closing device on exit...")
+            try:
+                self.current_device.close()
+            except Exception as e:
+                print(f"Error closing device on exit: {e}")
+            self.current_device = None
 
         # Wait for the thread to finish
         if self.device_thread and self.device_thread.is_alive():
             print("Joining device thread on exit...")
-            self.device_thread.join(timeout=1.0) # Wait briefly
+            self.device_thread.join(timeout=1.0)  # Wait briefly
 
         print("Destroying root window.")
         self.root.destroy()
