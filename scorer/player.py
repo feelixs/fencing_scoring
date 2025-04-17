@@ -47,15 +47,19 @@ class ScoringManager:
             if time_last_change_left is not None:
                 if (current_time - time_last_change_left).total_seconds() < secBeforeContDmg:
                     return False
+            else:
+                print("WARNING: time_last_change_left was None")
             if self.right_hp > 0:
                 self.right_hp = max(0, self.right_hp - damage_increment)
                 hp_changed = True
 
         # If Right player was hitting opponent, damage Left player
         if last_right == "HITTING_OPPONENT":
-            if time_last_change_left is not None:
-                if (current_time - time_last_change_left).total_seconds() < secBeforeContDmg:
+            if time_last_change_right is not None:
+                if (current_time - time_last_change_right).total_seconds() < secBeforeContDmg:
                     return False
+            else:
+                print("WARNING: time_last_change_right was None")
             if self.left_hp > 0:
                 self.left_hp = max(0, self.left_hp - damage_increment)
                 hp_changed = True  # Will be True if either condition met
