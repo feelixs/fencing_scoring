@@ -3,4 +3,8 @@ CLAUDE.md
 *.DS_Store
 .aider*
 *.pyc
-/temp_audio_analysis
+temp_audio_analysis/
+include/
+bin/
+.venv/
+lib/
