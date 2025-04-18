@@ -80,7 +80,7 @@ class DummyVSMDevice:
                 # Check if the listener thread is alive before joining
                 # pynput listener might already be stopped/joined internally sometimes
                 if self.listener.is_alive():
-                    time.sleep(1)  # Give it a moment to stop
+                    time.sleep(0.3)  # Give it a moment to stop
                     self.listener.join()
                     if self.listener.is_alive():
                         print("Warning: pynput listener thread did not join cleanly.")
