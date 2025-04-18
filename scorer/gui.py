@@ -71,6 +71,16 @@ class FencingGui:
         self.left_hp_zero = False
         self.right_hp_zero = False
 
+        # Shaking animation state
+        self.left_shaking = False
+        self.right_shaking = False
+        self.shake_offset = 0
+        self.shake_direction = 1
+        self.shake_magnitude = 5 # Pixels to shake left/right
+        self.left_bar_original_padx = (20, 20) # Store original padding
+        self.right_bar_original_padx = (20, 20) # Store original padding
+
+
         # Create winner display frame (initially hidden)
         # Use high stacking order to appear on top of all other widgets
         self.winner_frame = tk.Frame(self.root, bg="black", borderwidth=4, relief="raised")
@@ -103,7 +113,8 @@ class FencingGui:
             value=self.settings['max_hp'],  # Start full
             style="GreenHP.Vertical.TProgressbar"  # Initial style (will be updated dynamically)
         )
-        self.left_hp_bar.grid(row=1, column=0, padx=20, pady=20, sticky="ns")  # Take up whole side
+        # Use stored original padx for initial grid placement
+        self.left_hp_bar.grid(row=1, column=0, padx=self.left_bar_original_padx, pady=20, sticky="ns")
 
         # --- Right Player Elements ---
         self.right_label = tk.Label(self.root, text="RIGHT PLAYER", font=self._label_font, bg="black", fg="white") # Set bg/fg for visibility
@@ -118,7 +129,8 @@ class FencingGui:
             value=self.settings['max_hp'],  # Start full
             style="GreenHP.Vertical.TProgressbar"  # Initial style (will be updated dynamically)
         )
-        self.right_hp_bar.grid(row=1, column=1, padx=20, pady=20, sticky="ns")  # Take up whole side
+         # Use stored original padx for initial grid placement
+        self.right_hp_bar.grid(row=1, column=1, padx=self.right_bar_original_padx, pady=20, sticky="ns")
 
         # --- Settings Panel Frame (Now on the right side of the bottom row) ---
         # Use tk.Frame and set background explicitly
@@ -204,8 +216,37 @@ class FencingGui:
 
     def run(self):
         # Start the GUI update loop & Tkinter main loop
-        won = self.update_gui()
+        self.update_gui() # Start the main GUI update cycle
+        self._animate_shake() # Start the shake animation loop
         self.root.mainloop()
+
+    def _animate_shake(self):
+        """Periodically updates the position of bars that should be shaking."""
+        # Calculate the next offset
+        self.shake_offset += self.shake_direction * 2 # Adjust step size as needed
+        if abs(self.shake_offset) >= self.shake_magnitude:
+            self.shake_offset = self.shake_magnitude * self.shake_direction # Clamp to magnitude
+            self.shake_direction *= -1 # Reverse direction
+
+        # Apply offset to left bar if shaking
+        if self.left_shaking:
+            current_left_padx = (self.left_bar_original_padx[0] + self.shake_offset, self.left_bar_original_padx[1])
+            self.left_hp_bar.grid_configure(padx=current_left_padx)
+        else:
+            # Ensure bar is back to original position if not shaking
+            self.left_hp_bar.grid_configure(padx=self.left_bar_original_padx)
+
+        # Apply offset to right bar if shaking
+        if self.right_shaking:
+            # Use negative offset for the right bar if desired, or same offset
+            current_right_padx = (self.right_bar_original_padx[0] + self.shake_offset, self.right_bar_original_padx[1])
+            self.right_hp_bar.grid_configure(padx=current_right_padx)
+        else:
+            # Ensure bar is back to original position if not shaking
+            self.right_hp_bar.grid_configure(padx=self.right_bar_original_padx)
+
+        # Schedule the next animation frame
+        self.root.after(30, self._animate_shake) # ~33 FPS for animation
 
     def _configure_styles(self):
         # Calculate desired thickness based on screen width and padding
@@ -399,10 +440,13 @@ class FencingGui:
         start_time = datetime.now()
         last_state_change_time_l, last_state_change_time_r = start_time, start_time
         last_loop_time = start_time  # Track time for delta calculation
-        
+
         # Track last hit time for each player (for proper debouncing)
-        last_left_hit_time = datetime.min  # Initialize to minimum datetime to allow first hit
-        last_right_hit_time = datetime.min  # Initialize to minimum datetime to allow first hit
+        last_left_hit_time = datetime.min
+        last_right_hit_time = datetime.min
+
+        # Track continuous damage status to only send updates on change
+        last_cont_dmg_status = {'left': False, 'right': False}
 
         # Initial status and health update using ScoringManager
         self.output_queue.put({'type': 'status', 'message': "Monitoring fencing hits..."})
@@ -507,6 +551,29 @@ class FencingGui:
                             last_reported_state = current_state_tuple
                             time_last_reported = current_time
 
+                    # --- Determine Continuous Damage Status ---
+                    sec_before_cont_dmg = self.scoring_manager.settings.get('sec_before_cont_dmg', secBeforeContDmg)
+                    cont_dmg_delay = timedelta(seconds=sec_before_cont_dmg)
+
+                    # Left takes continuous damage if Right was hitting opponent/weapons continuously
+                    left_is_taking_cont_dmg = (
+                        last_reported_state[1] in ("HITTING_OPPONENT", "WEAPONS_HIT") and
+                        (current_time - last_state_change_time_r) >= cont_dmg_delay
+                    )
+                    # Right takes continuous damage if Left was hitting opponent/weapons continuously
+                    right_is_taking_cont_dmg = (
+                        last_reported_state[0] in ("HITTING_OPPONENT", "WEAPONS_HIT") and
+                        (current_time - last_state_change_time_l) >= cont_dmg_delay
+                    )
+
+                    current_cont_dmg_status = {'left': left_is_taking_cont_dmg, 'right': right_is_taking_cont_dmg}
+
+                    # Send update only if status changed
+                    if current_cont_dmg_status != last_cont_dmg_status:
+                        self.output_queue.put({'type': 'cont_dmg_status', **current_cont_dmg_status})
+                        last_cont_dmg_status = current_cont_dmg_status
+
+
                     # --- Send HP Update if it Changed this Iteration (either continuous or one-time) ---
                     if hp_changed_continuous or hp_changed_one_time:
                         current_left_hp, current_right_hp = self.scoring_manager.get_hp()
@@ -574,7 +641,11 @@ class FencingGui:
                     new_lines = (current_lines + [message])[-max_lines:]
                     self.status_label.config(text="\n".join(new_lines))
 
-                    # No longer need to lift status_frame as it's in its own row
+                elif item['type'] == 'cont_dmg_status':
+                    # Update shaking state based on continuous damage status
+                    self.left_shaking = item.get('left', False)
+                    self.right_shaking = item.get('right', False)
+
                 elif item['type'] == 'health':
                     left_hp = item['left']
                     right_hp = item['right']
