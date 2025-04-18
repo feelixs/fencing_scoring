@@ -30,6 +30,7 @@ class FencingGui:
         self.root = tk.Tk()
         self.root.title("Fencing Hit Detector")
         self.root.attributes('-fullscreen', True)
+        self.root.config(bg="black") # Set root background to black
 
         self.detect_hit_state = detect_hit_state
 
@@ -90,7 +91,7 @@ class FencingGui:
         self.winner_label.pack(expand=True, fill="both")
 
         # --- Left Player Elements ---
-        self.left_label = tk.Label(self.root, text="LEFT PLAYER", font=self._label_font)  # Removed bg/fg
+        self.left_label = tk.Label(self.root, text="LEFT PLAYER", font=self._label_font, bg="black", fg="white") # Set bg/fg for visibility
         self.left_label.grid(row=0, column=0, pady=(20, 5), sticky="ew")  # Increased padding
 
         self.left_hp_bar = ttk.Progressbar(
@@ -105,7 +106,7 @@ class FencingGui:
         self.left_hp_bar.grid(row=1, column=0, padx=20, pady=20, sticky="ns")  # Take up whole side
 
         # --- Right Player Elements ---
-        self.right_label = tk.Label(self.root, text="RIGHT PLAYER", font=self._label_font)
+        self.right_label = tk.Label(self.root, text="RIGHT PLAYER", font=self._label_font, bg="black", fg="white") # Set bg/fg for visibility
         self.right_label.grid(row=0, column=1, pady=(20, 5), sticky="ew")  # Increased padding
 
         self.right_hp_bar = ttk.Progressbar(
@@ -120,13 +121,15 @@ class FencingGui:
         self.right_hp_bar.grid(row=1, column=1, padx=20, pady=20, sticky="ns")  # Take up whole side
 
         # --- Settings Panel Frame (Now on the right side of the bottom row) ---
-        self.settings_frame = ttk.Frame(self.root, padding="10 10 10 10")
+        # Use tk.Frame and set background explicitly
+        self.settings_frame = tk.Frame(self.root, padding="10 10 10 10", bg="black")
         # Settings frame now in row 2, column 1
         self.settings_frame.grid(row=2, column=1, sticky="nsew", padx=(10, 20), pady=10)
 
         # --- Status Label Frame (Now on the left side of the bottom row) ---
         # Create a frame to hold the status label to control its position better
-        self.status_frame = ttk.Frame(self.root)
+        # Use tk.Frame and set background explicitly
+        self.status_frame = tk.Frame(self.root, bg="black")
         # Status frame now in row 2, column 0
         self.status_frame.grid(row=2, column=0, sticky="nsew", padx=(20, 10), pady=10)
         # Configure the column within status_frame to expand
@@ -140,7 +143,9 @@ class FencingGui:
             font=self._status_font,
             justify=tk.CENTER,
             anchor=tk.CENTER,
-            wraplength=600  # Adjust wrap length based on potentially smaller area
+            wraplength=600,  # Adjust wrap length based on potentially smaller area
+            bg="black",       # Set background
+            fg="white"        # Set text color
         )
         # Place status label within its frame using grid for better alignment
         self.status_label.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
@@ -208,8 +213,8 @@ class FencingGui:
         self.root.update_idletasks()
         screen_width = self.root.winfo_width()  # Use actual window width after layout
         # Bars are in columns 0 and 1, each with padx=20. Total padding = 40.
-        # Each column gets roughly half the remaining width.
-        bar_thickness = max(50, (screen_width - 40) // 2)  # Ensure a minimum thickness
+        # Reduce thickness: Use a smaller fraction and minimum
+        bar_thickness = max(30, (screen_width - 40) // 4)  # Ensure a minimum thickness of 30
 
         # Define the base layout for all HP bars
         base_style_layout = [
@@ -233,46 +238,58 @@ class FencingGui:
             # Configure the specific colors and thickness for each style
             self.style.configure(
                 name,
-                troughcolor='lightgray',
+                troughcolor='black', # Change trough color to black
                 background=color,
                 thickness=bar_thickness
             )
 
     def _setup_labels(self):
-        ttk.Label(
+        # Use tk.Label and set bg/fg
+        tk.Label(
             master=self.settings_frame,
             text="Starting HP:",
-            font=self._entry_font
+            font=self._entry_font,
+            bg="black", fg="white"
         ).grid(row=1, column=2, padx=5, pady=5, sticky="e")
 
-        ttk.Label(
+        # Use tk.Label and set bg/fg
+        tk.Label(
             master=self.settings_frame,
             text="Debounce Time (s):",
-            font=self._entry_font
+            font=self._entry_font,
+            bg="black", fg="white"
         ).grid(row=2, column=0, padx=5, pady=5, sticky="e")
         
-        ttk.Label(
+        # Use tk.Label and set bg/fg
+        tk.Label(
             master=self.settings_frame,
             text="Cont. Damage Delay (s):",
-            font=self._entry_font
+            font=self._entry_font,
+            bg="black", fg="white"
         ).grid(row=3, column=0, padx=5, pady=5, sticky="e")
 
-        ttk.Label(
+        # Use tk.Label and set bg/fg
+        tk.Label(
             master=self.settings_frame,
             text="Continuous Damage/ms:",
-            font=self._entry_font
+            font=self._entry_font,
+            bg="black", fg="white"
         ).grid(row=1, column=0, padx=5, pady=5, sticky="e")
 
-        ttk.Label(
+        # Use tk.Label and set bg/fg
+        tk.Label(
             master=self.settings_frame,
             text="Self Hit Damage:",
-            font=self._entry_font
+            font=self._entry_font,
+            bg="black", fg="white"
         ).grid(row=0, column=2, padx=5, pady=5, sticky="e")
 
-        ttk.Label(
+        # Use tk.Label and set bg/fg
+        tk.Label(
             master=self.settings_frame,
             text="Initial Hit Damage:",
-            font=self._entry_font
+            font=self._entry_font,
+            bg="black", fg="white"
         ).grid(row=0, column=0, padx=5, pady=5, sticky="e")
 
     def apply_settings_and_reset(self):
