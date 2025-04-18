@@ -702,7 +702,9 @@ class FencingGui:
             pass  # No messages currently
 
         if player_won and not self.stop_event.is_set():
-            print("Player has won, stopping device thread.")
+            print("Player has won, stopping device thread and shaking.")
+            self.left_shaking = False  # Stop left bar shaking
+            self.right_shaking = False # Stop right bar shaking
             self.stop_event.set()  # Stop the device thread if a player has won
 
         # Schedule the next check
