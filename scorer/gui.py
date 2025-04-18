@@ -18,30 +18,26 @@ from scorer.settings import (
 
 class FencingGui:
     def __init__(self, find_device, detect_hit_state):
-        # Removed fixed _bar_thickness, will calculate dynamically
-
         # find_device should return the VSM device, or None if it's not found
         self.find_device = find_device
 
-        # Queue for communication between threads
         self.output_queue = queue.Queue()
         self.stop_event = Event()
 
         self.root = tk.Tk()
         self.root.title("Fencing Hit Detector")
         self.root.attributes('-fullscreen', True)
-        self.root.config(bg="black") # Set root background to black
+        self.root.config(bg="black")
 
         self.detect_hit_state = detect_hit_state
 
         self.style = ttk.Style(self.root)
 
-        # Configure fonts
-        self._label_font = tkFont.Font(family="Helvetica", size=18)  # Increased font size
+        self._label_font = tkFont.Font(family="Helvetica", size=18)
         self._status_font = tkFont.Font(family="Helvetica", size=16)
         self._entry_font = tkFont.Font(family="Helvetica", size=12)
         self._button_font = tkFont.Font(family="Helvetica", size=12, weight="bold")
-        self._winner_font = tkFont.Font(family="Helvetica", size=48, weight="bold")  # Large font for winner display
+        self._winner_font = tkFont.Font(family="Helvetica", size=48, weight="bold")
 
         self.settings = {
             'hit_dmg': GLOBAL_HIT_DMG,
@@ -51,43 +47,34 @@ class FencingGui:
             'debounce_time': DEBOUNCE_TIME_SEC,
             'sec_before_cont_dmg': secBeforeContDmg
         }
-        # Instantiate the ScoringManager
         self.scoring_manager = ScoringManager(self.settings)
 
-        self.current_device = None  # Store the active device instance
+        self.current_device = None
         self.device_thread = self.start_device_thread()
 
         self._configure_styles()
 
-        # --- Layout using grid ---
-        self.root.grid_columnconfigure(0, weight=1, uniform="group1")  # Left HP bar column
-        self.root.grid_columnconfigure(1, weight=1, uniform="group1")  # Right HP bar column
-        self.root.grid_rowconfigure(0, weight=0)  # Labels row
-        self.root.grid_rowconfigure(1, weight=1)  # Progress bars row
-        self.root.grid_rowconfigure(2, weight=0)  # Combined Status & Settings row
-        # Row 3 is no longer used
+        self.root.grid_columnconfigure(0, weight=1, uniform="group1")
+        self.root.grid_columnconfigure(1, weight=1, uniform="group1")
+        self.root.grid_rowconfigure(0, weight=0)
+        self.root.grid_rowconfigure(1, weight=1)
+        self.root.grid_rowconfigure(2, weight=0)
 
-        # Track if HP has reached zero to play sound only once
         self.left_hp_zero = False
         self.right_hp_zero = False
 
-        # Shaking animation state
         self.left_shaking = False
         self.right_shaking = False
         self.shake_offset = 0
         self.shake_direction = 1
-        self.shake_magnitude = 5 # Pixels to shake left/right
-        self.left_bar_original_padx = (20, 20) # Store original padding
-        self.right_bar_original_padx = (20, 20) # Store original padding
+        self.shake_magnitude = 5
+        self.left_bar_original_padx = (20, 20)
+        self.right_bar_original_padx = (20, 20)
 
-
-        # Create winner display frame (initially hidden)
-        # Use high stacking order to appear on top of all other widgets
         self.winner_frame = tk.Frame(self.root, bg="black", borderwidth=4, relief="raised")
-        # Higher stacking order value (z-order) ensures it appears on top of other widgets
         self.winner_frame.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.8, relheight=0.25)
-        self.winner_frame.lift()  # Raise to the top of stacking order
-        self.winner_frame.place_forget()  # Hide initially
+        self.winner_frame.lift()
+        self.winner_frame.place_forget()
 
         self.winner_label = tk.Label(
             self.winner_frame,
@@ -100,53 +87,39 @@ class FencingGui:
         )
         self.winner_label.pack(expand=True, fill="both")
 
-        # --- Left Player Elements ---
-        self.left_label = tk.Label(self.root, text="LEFT PLAYER", font=self._label_font, bg="black", fg="white") # Set bg/fg for visibility
-        self.left_label.grid(row=0, column=0, pady=(20, 5), sticky="ew")  # Increased padding
+        self.left_label = tk.Label(self.root, text="LEFT PLAYER", font=self._label_font, bg="black", fg="white")
+        self.left_label.grid(row=0, column=0, pady=(20, 5), sticky="ew")
 
         self.left_hp_bar = ttk.Progressbar(
             master=self.root,
             orient="vertical",
-            length=800,  # Further increased height of the bar
+            length=800,
             mode="determinate",
             maximum=self.settings['max_hp'],
-            value=self.settings['max_hp'],  # Start full
-            style="GreenHP.Vertical.TProgressbar"  # Initial style (will be updated dynamically)
+            value=self.settings['max_hp'],
+            style="GreenHP.Vertical.TProgressbar"
         )
-        # Use stored original padx for initial grid placement
         self.left_hp_bar.grid(row=1, column=0, padx=self.left_bar_original_padx, pady=20, sticky="ns")
 
-        # --- Right Player Elements ---
         self.right_label = tk.Label(self.root, text="RIGHT PLAYER", font=self._label_font, bg="black", fg="white") # Set bg/fg for visibility
         self.right_label.grid(row=0, column=1, pady=(20, 5), sticky="ew")  # Increased padding
 
         self.right_hp_bar = ttk.Progressbar(
             master=self.root,
             orient="vertical",
-            length=800,  # Further increased height of the bar
+            length=800,
             mode="determinate",
             maximum=self.settings['max_hp'],
-            value=self.settings['max_hp'],  # Start full
-            style="GreenHP.Vertical.TProgressbar"  # Initial style (will be updated dynamically)
+            value=self.settings['max_hp'],
+            style="GreenHP.Vertical.TProgressbar"
         )
-         # Use stored original padx for initial grid placement
         self.right_hp_bar.grid(row=1, column=1, padx=self.right_bar_original_padx, pady=20, sticky="ns")
 
-        # --- Settings Panel Frame (Now on the right side of the bottom row) ---
-        # Use tk.Frame and set background explicitly
         self.settings_frame = tk.Frame(self.root, bg="black") # Removed padding argument
-        # Settings frame now in row 2, column 1
         self.settings_frame.grid(row=2, column=1, sticky="nsew", padx=(10, 20), pady=10)
-
-        # --- Status Label Frame (Now on the left side of the bottom row) ---
-        # Create a frame to hold the status label to control its position better
-        # Use tk.Frame and set background explicitly
         self.status_frame = tk.Frame(self.root, bg="black")
-        # Status frame now in row 2, column 0
         self.status_frame.grid(row=2, column=0, sticky="nsew", padx=(20, 10), pady=10)
-        # Configure the column within status_frame to expand
         self.status_frame.grid_columnconfigure(0, weight=1)
-        # Configure the row within status_frame to expand if needed (optional)
         self.status_frame.grid_rowconfigure(0, weight=1)
 
         self.status_label = tk.Label(
@@ -159,7 +132,6 @@ class FencingGui:
             bg="black",       # Set background
             fg="white"        # Set text color
         )
-        # Place status label within its frame using grid for better alignment
         self.status_label.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
         self.hit_dmg_entry = ttk.Entry(self.settings_frame, width=8, font=self._entry_font)
@@ -188,7 +160,6 @@ class FencingGui:
 
         self.style.configure(style="Accent.TButton", font=self._button_font)
 
-        # Add Apply/Reset button
         self.reset_button = ttk.Button(
             master=self.settings_frame,
             text="APPLY & RESET",
@@ -216,8 +187,8 @@ class FencingGui:
 
     def run(self):
         # Start the GUI update loop & Tkinter main loop
-        self.update_gui() # Start the main GUI update cycle
-        self._animate_shake() # Start the shake animation loop
+        self.update_gui()
+        self._animate_shake()
         self.root.mainloop()
 
     def _animate_shake(self):
@@ -225,8 +196,8 @@ class FencingGui:
         # Calculate the next offset
         self.shake_offset += self.shake_direction * 2 # Adjust step size as needed
         if abs(self.shake_offset) >= self.shake_magnitude:
-            self.shake_offset = self.shake_magnitude * self.shake_direction # Clamp to magnitude
-            self.shake_direction *= -1 # Reverse direction
+            self.shake_offset = self.shake_magnitude * self.shake_direction  # Clamp to magnitude
+            self.shake_direction *= -1  # Reverse direction
 
         # Apply offset to left bar if shaking
         if self.left_shaking:
@@ -246,7 +217,7 @@ class FencingGui:
             self.right_hp_bar.grid_configure(padx=self.right_bar_original_padx)
 
         # Schedule the next animation frame
-        self.root.after(30, self._animate_shake) # ~33 FPS for animation
+        self.root.after(30, self._animate_shake)  # ~33 FPS for animation
 
     def _configure_styles(self):
         # Calculate desired thickness based on screen width and padding
@@ -279,7 +250,7 @@ class FencingGui:
             # Configure the specific colors and thickness for each style
             self.style.configure(
                 name,
-                troughcolor='black', # Change trough color to black
+                troughcolor='black',  # Change trough color to black
                 background=color,
                 thickness=bar_thickness
             )
@@ -547,11 +518,9 @@ class FencingGui:
                                     current_state_tuple=current_state_tuple
                                 )
                             
-                            # Always update last reported state after handling changes
                             last_reported_state = current_state_tuple
                             time_last_reported = current_time
 
-                    # --- Determine Continuous Damage Status ---
                     sec_before_cont_dmg = self.scoring_manager.settings.get('sec_before_cont_dmg', secBeforeContDmg)
                     cont_dmg_delay = timedelta(seconds=sec_before_cont_dmg)
 
@@ -568,13 +537,10 @@ class FencingGui:
 
                     current_cont_dmg_status = {'left': left_is_taking_cont_dmg, 'right': right_is_taking_cont_dmg}
 
-                    # Send update only if status changed
                     if current_cont_dmg_status != last_cont_dmg_status:
                         self.output_queue.put({'type': 'cont_dmg_status', **current_cont_dmg_status})
                         last_cont_dmg_status = current_cont_dmg_status
 
-
-                    # --- Send HP Update if it Changed this Iteration (either continuous or one-time) ---
                     if hp_changed_continuous or hp_changed_one_time:
                         current_left_hp, current_right_hp = self.scoring_manager.get_hp()
                         self.output_queue.put({'type': 'health', 'left': current_left_hp, 'right': current_right_hp})
@@ -695,16 +661,13 @@ class FencingGui:
                         self.left_hp_zero = False
                     if right_hp > 0:
                         self.right_hp_zero = False
-
-                    # Styles are now dynamically updated based on health percentage above
-                self.root.update_idletasks()  # Update GUI immediately
+                self.root.update_idletasks()
         except queue.Empty:
             pass  # No messages currently
 
         if player_won and not self.stop_event.is_set():
-            print("Player has won, stopping device thread and shaking.")
             self.left_shaking = False  # Stop left bar shaking
-            self.right_shaking = False # Stop right bar shaking
+            self.right_shaking = False  # Stop right bar shaking
             self.stop_event.set()  # Stop the device thread if a player has won
 
         # Schedule the next check
