@@ -184,6 +184,7 @@ class FencingGui:
         for x in thresholds:
             if percentage < int(x) and not sounds_played[x]:
                 playsound(f"sounds/defeat_high.mp3" if side == "left" else f"sounds/defeat_low.mp3", block=False)
+                sounds_played[x] = True
                 break  # Play only one sound per drop
 
     @staticmethod
