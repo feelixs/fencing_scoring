@@ -23,6 +23,7 @@ class FencingGui:
 
         self.output_queue = queue.Queue()
         self.stop_event = Event()
+        self._playing_sound = False  # configure so we only play 1 sound at a time (no overlapping sound effects)
 
         self.root = tk.Tk()
         self.root.title("Fencing Hit Detector")
@@ -171,7 +172,24 @@ class FencingGui:
         self._setup_labels()
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-    def _get_hp_style(self, hp, max_hp):
+    def _play_sound_for_hp_intervals(self, sound_path: str):
+        """Should be run in a new thread"""
+        while self._playing_sound:
+            time.sleep(0.1)
+        self._playing_sound = True
+        playsound(sound_path, block=True)
+        self._playing_sound = False
+
+    def _schedule_sound_for_hp_intervals(self, new_hp, cur_hp, side: str):
+        thresholds = [75, 50, 25]
+        for x in [v for v in thresholds if cur_hp > v >= new_hp]:
+            Thread(
+                target=self._play_sound_for_hp_intervals,
+                args=(f"sounds/defeat.mp3", )
+            ).start()
+
+    @staticmethod
+    def _get_hp_style(hp, max_hp):
         """Determines the ttk style name based on HP percentage."""
         if max_hp <= 0:  # Avoid division by zero and handle edge case
             return "RedHP.Vertical.TProgressbar"
@@ -615,11 +633,22 @@ class FencingGui:
                 elif item['type'] == 'health':
                     left_hp = item['left']
                     right_hp = item['right']
-                    max_hp = self.scoring_manager.settings.get('max_hp', MAX_HP) # Get current max_hp
+                    max_hp = self.scoring_manager.settings.get('max_hp', MAX_HP)
 
                     # Determine the style based on current HP
                     left_style = self._get_hp_style(left_hp, max_hp)
                     right_style = self._get_hp_style(right_hp, max_hp)
+
+                    self._schedule_sound_for_hp_intervals(
+                        new_hp=left_hp,
+                        cur_hp=self.left_hp_bar['value'],
+                        side="left"
+                    )
+                    self._schedule_sound_for_hp_intervals(
+                        new_hp=right_hp,
+                        cur_hp=self.right_hp_bar['value'],
+                        side="right"
+                    )
 
                     # Update bar values and styles
                     self.left_hp_bar.config(style=left_style)
