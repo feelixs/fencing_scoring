@@ -584,8 +584,7 @@ class FencingGui:
                             device = new_device
                             self.current_device = device  # Update GUI reference
                             break  # Found a device
-                        # Wait a bit before retrying
-                        time.sleep(1)
+                        time.sleep(1)  # Wait a bit before retrying
 
                     if self.stop_event.is_set():  # Exit if stopped during reconnect attempt
                         break
