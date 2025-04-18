@@ -54,15 +54,20 @@ def remove_noise(input_file, output_file, prop_decrease=1.0, temp_wav_suffix="_t
         else: # Mono
              noise_clip = data[:noise_clip_samples]
 
-        # Check if noise_clip is valid
-        if noise_clip.size == 0:
-             print(f"Warning: Could not get a noise clip from {input_file}. Skipping noise reduction.")
-             reduced_noise_data = data # Skip reduction
-        else:
-             reduced_noise_data = nr.reduce_noise(y=data, sr=rate, y_noise=noise_clip, prop_decrease=prop_decrease)
+       # Check if noise_clip is valid
+       if noise_clip.size == 0:
+           print(f"Warning: Could not get a valid noise clip (size 0) from {input_file}. Skipping noise reduction.")
+           reduced_noise_data = data # Skip reduction
+       elif np.std(noise_clip) < 1e-10: # Check if noise clip is essentially silent
+            print(f"Warning: Noise clip from {input_file} is nearly silent (std dev < 1e-10). Skipping noise reduction to avoid potential errors.")
+            reduced_noise_data = data # Skip reduction
+       else:
+           # Perform noise reduction, catching potential runtime warnings
+           with np.errstate(divide='ignore', invalid='ignore'): # Suppress the specific warning if it still occurs
+                reduced_noise_data = nr.reduce_noise(y=data, sr=rate, y_noise=noise_clip, prop_decrease=prop_decrease)
 
 
-        # Save reduced noise data back to the temporary WAV
+       # Save reduced noise data back to the temporary WAV
         sf.write(temp_wav_path, reduced_noise_data, rate)
 
         # Load the processed WAV back with pydub
