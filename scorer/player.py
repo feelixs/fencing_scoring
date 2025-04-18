@@ -42,10 +42,13 @@ class ScoringManager:
         damage_increment = time_delta.total_seconds() * 1000 * self.settings['hit_dmg_per_ms']
         last_left, last_right = last_state_tuple
 
+        # Get continuous damage delay setting from our settings dictionary
+        sec_before_cont_dmg = self.settings.get('sec_before_cont_dmg', 0.5)  # Default to 0.5s if not set
+        
         # If Left player was hitting opponent, damage Right player
         if last_left == "HITTING_OPPONENT":
             if time_last_change_left is not None:
-                if (current_time - time_last_change_left).total_seconds() < secBeforeContDmg:
+                if (current_time - time_last_change_left).total_seconds() < sec_before_cont_dmg:
                     return False
             else:
                 print("WARNING: time_last_change_left was None")
@@ -56,7 +59,7 @@ class ScoringManager:
         # If Right player was hitting opponent, damage Left player
         if last_right == "HITTING_OPPONENT":
             if time_last_change_right is not None:
-                if (current_time - time_last_change_right).total_seconds() < secBeforeContDmg:
+                if (current_time - time_last_change_right).total_seconds() < sec_before_cont_dmg:
                     return False
             else:
                 print("WARNING: time_last_change_right was None")

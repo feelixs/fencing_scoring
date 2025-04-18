@@ -12,6 +12,7 @@ from scorer.settings import (
     GLOBAL_HIT_DMG_PER_MILLISECOND,
     MAX_HP,
     DEBOUNCE_TIME_SEC,
+    secBeforeContDmg,
 )
 
 
@@ -46,7 +47,8 @@ class FencingGui:
             'hit_dmg_self': GLOBAL_HIT_DMG_SELF,
             'hit_dmg_per_ms': GLOBAL_HIT_DMG_PER_MILLISECOND,
             'max_hp': MAX_HP,
-            'debounce_time': DEBOUNCE_TIME_SEC
+            'debounce_time': DEBOUNCE_TIME_SEC,
+            'sec_before_cont_dmg': secBeforeContDmg
         }
         # Instantiate the ScoringManager
         self.scoring_manager = ScoringManager(self.settings)
@@ -162,6 +164,10 @@ class FencingGui:
         self.debounce_time_entry = ttk.Entry(self.settings_frame, width=8, font=self._entry_font)
         self.debounce_time_entry.insert(0, str(self.settings['debounce_time']))
         self.debounce_time_entry.grid(row=2, column=1, padx=5, pady=5, sticky="w")
+        
+        self.sec_before_cont_dmg_entry = ttk.Entry(self.settings_frame, width=8, font=self._entry_font)
+        self.sec_before_cont_dmg_entry.insert(0, str(self.settings['sec_before_cont_dmg']))
+        self.sec_before_cont_dmg_entry.grid(row=3, column=1, padx=5, pady=5, sticky="w")
 
         self.style.configure(style="Accent.TButton", font=self._button_font)
 
@@ -172,7 +178,7 @@ class FencingGui:
             command=self.apply_settings_and_reset,
             style="Accent.TButton"
         )
-        self.reset_button.grid(row=2, column=2, columnspan=2, padx=20, pady=5, sticky="ew")
+        self.reset_button.grid(row=3, column=2, columnspan=2, padx=20, pady=5, sticky="ew")
 
         self._setup_labels()
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -233,6 +239,12 @@ class FencingGui:
             text="Debounce Time (s):",
             font=self._entry_font
         ).grid(row=2, column=0, padx=5, pady=5, sticky="e")
+        
+        ttk.Label(
+            master=self.settings_frame,
+            text="Cont. Damage Delay (s):",
+            font=self._entry_font
+        ).grid(row=3, column=0, padx=5, pady=5, sticky="e")
 
         ttk.Label(
             master=self.settings_frame,
@@ -260,7 +272,8 @@ class FencingGui:
                 'hit_dmg_self': float(self.hit_dmg_self_entry.get()),
                 'hit_dmg_per_ms': float(self.hit_dmg_per_ms_entry.get()),
                 'max_hp': float(self.max_hp_entry.get()),
-                'debounce_time': float(self.debounce_time_entry.get())
+                'debounce_time': float(self.debounce_time_entry.get()),
+                'sec_before_cont_dmg': float(self.sec_before_cont_dmg_entry.get())
             }
 
             # Update progress bars to use new max HP
