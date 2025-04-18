@@ -154,21 +154,21 @@ if edgy_sound_created and os.path.exists(edgy_beep):
     sound = AudioSegment.from_mp3(edgy_beep)
 
     # Create higher pitch version (increase by 3 semitones)
-higher_pitch = sound._spawn(sound.raw_data, overrides={
-    "frame_rate": int(sound.frame_rate * 1.189207115) # Approx +3 semitones
-})
-# Normalize the pitch-shifted sound to avoid clipping/volume issues
-higher_pitch = normalize(higher_pitch)
-higher_pitch.export(defeat_high, format="mp3")
-print(f"Created {defeat_high}")
+    higher_pitch = sound._spawn(sound.raw_data, overrides={
+        "frame_rate": int(sound.frame_rate * 1.189207115) # Approx +3 semitones
+    })
+    # Normalize the pitch-shifted sound to avoid clipping/volume issues
+    higher_pitch = normalize(higher_pitch)
+    higher_pitch.export(defeat_high, format="mp3")
+    print(f"Created {defeat_high}")
 
-# Create lower pitch version (decrease by 3 semitones)
-lower_pitch = sound._spawn(sound.raw_data, overrides={
-    "frame_rate": int(sound.frame_rate * 0.840896415) # Approx -3 semitones
-})
-# Normalize the pitch-shifted sound
-lower_pitch = normalize(lower_pitch)
-lower_pitch.export(defeat_low, format="mp3")
+    # Create lower pitch version (decrease by 3 semitones)
+    lower_pitch = sound._spawn(sound.raw_data, overrides={
+        "frame_rate": int(sound.frame_rate * 0.840896415) # Approx -3 semitones
+    })
+    # Normalize the pitch-shifted sound
+    lower_pitch = normalize(lower_pitch)
+    lower_pitch.export(defeat_low, format="mp3")
     print(f"Created {defeat_low}")
 else:
     print("Skipping pitch shifting because the edgy sound was not created successfully.")
