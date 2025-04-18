@@ -13,7 +13,7 @@ from scorer.gui import FencingGui
 
 
 import sys
-from tester import find_dummy_device
+from dummy import find_dummy_device
 
 
 def find_vsm_device():

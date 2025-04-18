@@ -5,8 +5,8 @@ from threading import Thread, Event
 from datetime import datetime, timedelta
 import queue
 from playsound import playsound
-from scorer.player import ScoringManager
-from scorer.settings import (
+from src.player import ScoringManager
+from src.settings import (
     GLOBAL_HIT_DMG,
     GLOBAL_HIT_DMG_SELF,
     GLOBAL_HIT_DMG_PER_MILLISECOND,

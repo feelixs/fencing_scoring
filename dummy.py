@@ -1,7 +1,9 @@
 import time
-from threading import Thread, Event, Lock
+from threading import Event, Lock
 from pynput import keyboard
 
+
+# simulate the VSM device thru keyboard presses
 
 class DummyVSMDevice:
     def __init__(self):
