@@ -32,22 +32,20 @@ def remove_noise(input_file, output_file, prop_decrease=1.0, temp_wav_suffix="_t
         # Export to temporary WAV
         audio.export(temp_wav_path, format="wav")
 
-        # Load WAV using soundfile for noisereduce
-        rate, data = sf.read(temp_wav_path)
+        # Load WAV using soundfile, requesting float32 directly
+        try:
+            data, rate = sf.read(temp_wav_path, dtype='float32')
+        except Exception as e:
+            print(f"Error reading temporary WAV file {temp_wav_path} with soundfile: {e}")
+            return False # Indicate failure
 
-        # Ensure data is float for noisereduce
-        if data.dtype != np.float32 and data.dtype != np.float64:
-            # Convert integer PCM to float [-1.0, 1.0]
-            if np.issubdtype(data.dtype, np.integer):
-                max_val = np.iinfo(data.dtype).max
-                data = data.astype(np.float32) / max_val
-            else:
-                # Attempt conversion if some other type, might fail
-                data = data.astype(np.float32)
-
+        # Check if data read was successful and is a numpy array
+        if not isinstance(data, np.ndarray) or data.size == 0:
+            print(f"Failed to load valid audio data from {temp_wav_path}")
+            return False # Indicate failure
 
         # Perform noise reduction
-        # Use the first second for noise profiling if stereo, else first half second
+        # Use up to the first second for noise profiling
         noise_clip_duration = min(1.0, len(data) / rate / 2) # Use up to 1s or half the audio
         noise_clip_samples = int(noise_clip_duration * rate)
 
@@ -73,9 +71,11 @@ def remove_noise(input_file, output_file, prop_decrease=1.0, temp_wav_suffix="_t
         # Export the final MP3
         processed_audio.export(output_file, format="mp3")
         print(f"Saved noise-reduced file to {output_file}")
+        return True # Indicate success
 
     except Exception as e:
-        print(f"Error during noise reduction for {input_file}: {e}")
+        print(f"Error during noise reduction processing for {input_file}: {e}")
+        return False # Indicate failure
     finally:
         # Clean up temporary WAV file
         if 'temp_wav_path' in locals() and os.path.exists(temp_wav_path):
@@ -95,10 +95,11 @@ defeat_high = "sounds/defeat_high.mp3"
 defeat_low = "sounds/defeat_low.mp3"
 
 # 1. Remove noise from the original beep
-remove_noise(original_beep, cleaned_beep)
+print("--- Step 1: Noise Reduction ---")
+noise_reduction_successful = remove_noise(original_beep, cleaned_beep)
 
-# 2. Create edgy version from the *cleaned* beep
-# (Function definition remains the same, but we call it with cleaned input)
+# Define the function for creating edgy sound here so it's available regardless
+# of whether noise reduction succeeded, but only call it if needed.
 def create_edgy_sound(input_file, output_file, gain_db=2, headroom_db=1.0):
     """
     Create a version of the sound with more 'edge' by:
@@ -124,15 +125,35 @@ def create_edgy_sound(input_file, output_file, gain_db=2, headroom_db=1.0):
     with_edge.export(output_file, format="mp3")
 
     print(f"Created {output_file} with added edge effect")
+    return True # Indicate success
 
-create_edgy_sound(cleaned_beep, edgy_beep)
+# 2. Create edgy version
+print("\n--- Step 2: Create Edgy Sound ---")
+edgy_sound_created = False
+source_for_edgy = None
+
+if noise_reduction_successful:
+    print(f"Using cleaned beep '{cleaned_beep}' as source.")
+    source_for_edgy = cleaned_beep
+    edgy_sound_created = create_edgy_sound(source_for_edgy, edgy_beep)
+else:
+    print(f"Warning: Noise reduction failed. Attempting to create edgy sound from original '{original_beep}'.")
+    source_for_edgy = original_beep
+    # Check if original exists before trying to use it
+    if os.path.exists(source_for_edgy):
+        edgy_sound_created = create_edgy_sound(source_for_edgy, edgy_beep)
+    else:
+        print(f"Error: Original beep '{original_beep}' not found. Cannot create edgy sound.")
 
 
-# 3. Create pitch-shifted versions from the *edgy* (and cleaned) beep
-# Load the newly created edgy sound
-sound = AudioSegment.from_mp3(edgy_beep)
+# 3. Create pitch-shifted versions
+print("\n--- Step 3: Create Pitch-Shifted Defeat Sounds ---")
+if edgy_sound_created and os.path.exists(edgy_beep):
+    print(f"Using edgy beep '{edgy_beep}' as source for pitch shifting.")
+    # Load the edgy sound
+    sound = AudioSegment.from_mp3(edgy_beep)
 
-# Create higher pitch version (increase by 3 semitones)
+    # Create higher pitch version (increase by 3 semitones)
 higher_pitch = sound._spawn(sound.raw_data, overrides={
     "frame_rate": int(sound.frame_rate * 1.189207115) # Approx +3 semitones
 })
@@ -148,7 +169,9 @@ lower_pitch = sound._spawn(sound.raw_data, overrides={
 # Normalize the pitch-shifted sound
 lower_pitch = normalize(lower_pitch)
 lower_pitch.export(defeat_low, format="mp3")
-print(f"Created {defeat_low}")
+    print(f"Created {defeat_low}")
+else:
+    print("Skipping pitch shifting because the edgy sound was not created successfully.")
 
 
 print("\nSound generation process complete.")
