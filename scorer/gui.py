@@ -88,7 +88,8 @@ class FencingGui:
         )
         self.winner_label.pack(expand=True, fill="both")
 
-        self.left_label = tk.Label(self.root, text="LEFT PLAYER", font=self._label_font, bg="black", fg="white")
+        # Initialize labels with starting percentage
+        self.left_label = tk.Label(self.root, text="LEFT PLAYER - 100%", font=self._label_font, bg="black", fg="white")
         self.left_label.grid(row=0, column=0, pady=(20, 5), sticky="ew")
 
         self.left_hp_bar = ttk.Progressbar(
@@ -102,8 +103,9 @@ class FencingGui:
         )
         self.left_hp_bar.grid(row=1, column=0, padx=self.left_bar_original_padx, pady=20, sticky="ns")
 
-        self.right_label = tk.Label(self.root, text="RIGHT PLAYER", font=self._label_font, bg="black", fg="white") # Set bg/fg for visibility
-        self.right_label.grid(row=0, column=1, pady=(20, 5), sticky="ew")  # Increased padding
+        # Initialize labels with starting percentage
+        self.right_label = tk.Label(self.root, text="RIGHT PLAYER - 100%", font=self._label_font, bg="black", fg="white")
+        self.right_label.grid(row=0, column=1, pady=(20, 5), sticky="ew")
 
         self.right_hp_bar = ttk.Progressbar(
             master=self.root,
@@ -649,6 +651,15 @@ class FencingGui:
                         cur_hp=self.right_hp_bar['value'],
                         side="right"
                     )
+
+                    # Update bar values and styles
+                    # Calculate percentages
+                    left_percent = int((left_hp / max_hp) * 100) if max_hp > 0 else 0
+                    right_percent = int((right_hp / max_hp) * 100) if max_hp > 0 else 0
+
+                    # Update labels with percentages
+                    self.left_label.config(text=f"LEFT PLAYER - {left_percent}%")
+                    self.right_label.config(text=f"RIGHT PLAYER - {right_percent}%")
 
                     # Update bar values and styles
                     self.left_hp_bar.config(style=left_style)
