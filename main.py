@@ -1,5 +1,5 @@
 import hid
-from scorer.gui import FencingGui
+from src.gui import FencingGui
 
 # diff colors for each player? -> take up the whole side of the screen
 # move debugging to bottom center
