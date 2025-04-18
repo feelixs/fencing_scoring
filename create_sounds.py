@@ -7,6 +7,7 @@ from pydub import AudioSegment
 from pydub.playback import play
 from pydub.effects import normalize
 
+
 # --- Noise Reduction Function ---
 
 def remove_noise(input_file, output_file, prop_decrease=1.0, temp_wav_suffix="_temp_nr.wav"):
@@ -37,37 +38,38 @@ def remove_noise(input_file, output_file, prop_decrease=1.0, temp_wav_suffix="_t
             data, rate = sf.read(temp_wav_path, dtype='float32')
         except Exception as e:
             print(f"Error reading temporary WAV file {temp_wav_path} with soundfile: {e}")
-            return False # Indicate failure
+            return False  # Indicate failure
 
         # Check if data read was successful and is a numpy array
         if not isinstance(data, np.ndarray) or data.size == 0:
             print(f"Failed to load valid audio data from {temp_wav_path}")
-            return False # Indicate failure
+            return False  # Indicate failure
 
         # Perform noise reduction
         # Use up to the first second for noise profiling
-        noise_clip_duration = min(1.0, len(data) / rate / 2) # Use up to 1s or half the audio
+        noise_clip_duration = min(1.0, len(data) / rate / 2)  # Use up to 1s or half the audio
         noise_clip_samples = int(noise_clip_duration * rate)
 
-        if len(data.shape) > 1 and data.shape[1] > 1: # Stereo
-             noise_clip = data[:noise_clip_samples, :]
-        else: # Mono
-             noise_clip = data[:noise_clip_samples]
+        if len(data.shape) > 1 and data.shape[1] > 1:  # Stereo
+            noise_clip = data[:noise_clip_samples, :]
+        else:  # Mono
+            noise_clip = data[:noise_clip_samples]
 
-       # Check if noise_clip is valid
-       if noise_clip.size == 0:
-           print(f"Warning: Could not get a valid noise clip (size 0) from {input_file}. Skipping noise reduction.")
-           reduced_noise_data = data # Skip reduction
-       elif np.std(noise_clip) < 1e-10: # Check if noise clip is essentially silent
-            print(f"Warning: Noise clip from {input_file} is nearly silent (std dev < 1e-10). Skipping noise reduction to avoid potential errors.")
-            reduced_noise_data = data # Skip reduction
-       else:
-           # Perform noise reduction, catching potential runtime warnings
-           with np.errstate(divide='ignore', invalid='ignore'): # Suppress the specific warning if it still occurs
+        # Check if noise_clip is valid
+        if noise_clip.size == 0:
+            print(f"Warning: Could not get a valid noise clip (size 0) from {input_file}. Skipping noise reduction.")
+            reduced_noise_data = data  # Skip reduction
+        elif np.std(noise_clip) < 1e-10:  # Check if noise clip is essentially silent
+            print(
+                f"Warning: Noise clip from {input_file} is nearly silent (std dev < 1e-10). Skipping noise reduction to avoid potential errors.")
+            reduced_noise_data = data  # Skip reduction
+        else:
+            # Perform noise reduction, catching potential runtime warnings
+            with np.errstate(divide='ignore', invalid='ignore'):  # Suppress the specific warning if it still occurs
                 reduced_noise_data = nr.reduce_noise(y=data, sr=rate, y_noise=noise_clip, prop_decrease=prop_decrease)
 
 
-       # Save reduced noise data back to the temporary WAV
+            # Save reduced noise data back to the temporary WAV
         sf.write(temp_wav_path, reduced_noise_data, rate)
 
         # Load the processed WAV back with pydub
@@ -76,11 +78,11 @@ def remove_noise(input_file, output_file, prop_decrease=1.0, temp_wav_suffix="_t
         # Export the final MP3
         processed_audio.export(output_file, format="mp3")
         print(f"Saved noise-reduced file to {output_file}")
-        return True # Indicate success
+        return True  # Indicate success
 
     except Exception as e:
         print(f"Error during noise reduction processing for {input_file}: {e}")
-        return False # Indicate failure
+        return False  # Indicate failure
     finally:
         # Clean up temporary WAV file
         if 'temp_wav_path' in locals() and os.path.exists(temp_wav_path):
@@ -88,7 +90,6 @@ def remove_noise(input_file, output_file, prop_decrease=1.0, temp_wav_suffix="_t
                 os.remove(temp_wav_path)
             except OSError as e:
                 print(f"Error removing temporary file {temp_wav_path}: {e}")
-
 
 # --- Sound Creation Steps ---
 
@@ -102,6 +103,7 @@ defeat_low = "sounds/defeat_low.mp3"
 # 1. Remove noise from the original beep
 print("--- Step 1: Noise Reduction ---")
 noise_reduction_successful = remove_noise(original_beep, cleaned_beep)
+
 
 # Define the function for creating edgy sound here so it's available regardless
 # of whether noise reduction succeeded, but only call it if needed.
@@ -130,7 +132,8 @@ def create_edgy_sound(input_file, output_file, gain_db=2, headroom_db=1.0):
     with_edge.export(output_file, format="mp3")
 
     print(f"Created {output_file} with added edge effect")
-    return True # Indicate success
+    return True  # Indicate success
+
 
 # 2. Create edgy version
 print("\n--- Step 2: Create Edgy Sound ---")
@@ -150,7 +153,6 @@ else:
     else:
         print(f"Error: Original beep '{original_beep}' not found. Cannot create edgy sound.")
 
-
 # 3. Create pitch-shifted versions
 print("\n--- Step 3: Create Pitch-Shifted Defeat Sounds ---")
 if edgy_sound_created and os.path.exists(edgy_beep):
@@ -160,7 +162,7 @@ if edgy_sound_created and os.path.exists(edgy_beep):
 
     # Create higher pitch version (increase by 3 semitones)
     higher_pitch = sound._spawn(sound.raw_data, overrides={
-        "frame_rate": int(sound.frame_rate * 1.189207115) # Approx +3 semitones
+        "frame_rate": int(sound.frame_rate * 1.189207115)  # Approx +3 semitones
     })
     # Normalize the pitch-shifted sound to avoid clipping/volume issues
     higher_pitch = normalize(higher_pitch)
@@ -169,7 +171,7 @@ if edgy_sound_created and os.path.exists(edgy_beep):
 
     # Create lower pitch version (decrease by 3 semitones)
     lower_pitch = sound._spawn(sound.raw_data, overrides={
-        "frame_rate": int(sound.frame_rate * 0.840896415) # Approx -3 semitones
+        "frame_rate": int(sound.frame_rate * 0.840896415)  # Approx -3 semitones
     })
     # Normalize the pitch-shifted sound
     lower_pitch = normalize(lower_pitch)
@@ -177,6 +179,5 @@ if edgy_sound_created and os.path.exists(edgy_beep):
     print(f"Created {defeat_low}")
 else:
     print("Skipping pitch shifting because the edgy sound was not created successfully.")
-
 
 print("\nSound generation process complete.")
