@@ -122,7 +122,7 @@ class FencingGui:
 
         # --- Settings Panel Frame (Now on the right side of the bottom row) ---
         # Use tk.Frame and set background explicitly
-        self.settings_frame = tk.Frame(self.root, padding="10 10 10 10", bg="black")
+        self.settings_frame = tk.Frame(self.root, bg="black") # Removed padding argument
         # Settings frame now in row 2, column 1
         self.settings_frame.grid(row=2, column=1, sticky="nsew", padx=(10, 20), pady=10)
 
