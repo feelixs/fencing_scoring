@@ -100,7 +100,7 @@ class FencingGui:
             mode="determinate",
             maximum=self.settings['max_hp'],
             value=self.settings['max_hp'],  # Start full
-            style="Green.Vertical.TProgressbar"  # Initial style
+            style="GreenHP.Vertical.TProgressbar"  # Initial style (will be updated dynamically)
         )
         self.left_hp_bar.grid(row=1, column=0, padx=20, pady=20, sticky="ns")  # Take up whole side
 
@@ -115,7 +115,7 @@ class FencingGui:
             mode="determinate",
             maximum=self.settings['max_hp'],
             value=self.settings['max_hp'],  # Start full
-            style="Red.Vertical.TProgressbar"  # Set to Red style
+            style="GreenHP.Vertical.TProgressbar"  # Initial style (will be updated dynamically)
         )
         self.right_hp_bar.grid(row=1, column=1, padx=20, pady=20, sticky="ns")  # Take up whole side
 
@@ -183,6 +183,20 @@ class FencingGui:
         self._setup_labels()
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
+    def _get_hp_style(self, hp, max_hp):
+        """Determines the ttk style name based on HP percentage."""
+        if max_hp <= 0:  # Avoid division by zero and handle edge case
+            return "RedHP.Vertical.TProgressbar"
+        percentage = (hp / max_hp) * 100
+        if percentage > 75:
+            return "GreenHP.Vertical.TProgressbar"
+        elif percentage > 50:
+            return "YellowHP.Vertical.TProgressbar"
+        elif percentage > 25:
+            return "OrangeHP.Vertical.TProgressbar"
+        else:
+            return "RedHP.Vertical.TProgressbar"
+
     def run(self):
         # Start the GUI update loop & Tkinter main loop
         won = self.update_gui()
@@ -197,35 +211,32 @@ class FencingGui:
         # Each column gets roughly half the remaining width.
         bar_thickness = max(50, (screen_width - 40) // 2)  # Ensure a minimum thickness
 
-        # Define styles for the progress bars
-        self.style.layout(
-            style="Green.Vertical.TProgressbar",
-            layoutspec=[
-                ('Vertical.Progressbar.trough',
-                 {'children': [('Vertical.Progressbar.pbar', {'side': 'bottom', 'sticky': 'ns'})], 'sticky': 'nswe'})
-            ]
-        )
-        self.style.layout(
-            style="Red.Vertical.TProgressbar",
-            layoutspec=[
-                ('Vertical.Progressbar.trough',
-                 {'children': [('Vertical.Progressbar.pbar', {'side': 'bottom', 'sticky': 'ns'})], 'sticky': 'nswe'})
-            ]
-        )
+        # Define the base layout for all HP bars
+        base_style_layout = [
+            ('Vertical.Progressbar.trough', {
+                'children': [('Vertical.Progressbar.pbar', {'side': 'bottom', 'sticky': 'ns'})],
+                'sticky': 'nswe'
+            })
+        ]
 
-        # Configure the colors and thickness
-        self.style.configure(
-            style="Green.Vertical.TProgressbar",
-            troughcolor='lightgray',
-            background='green',
-            thickness=bar_thickness  # Use calculated thickness
-        )
-        self.style.configure(
-            style="Red.Vertical.TProgressbar",
-            troughcolor='lightgray',
-            background='red',
-            thickness=bar_thickness  # Use calculated thickness
-        )
+        # Define the style names and corresponding colors
+        style_color_map = {
+            "GreenHP.Vertical.TProgressbar": "green",
+            "YellowHP.Vertical.TProgressbar": "yellow",
+            "OrangeHP.Vertical.TProgressbar": "orange",
+            "RedHP.Vertical.TProgressbar": "red"
+        }
+
+        for name, color in style_color_map.items():
+            # Apply the base layout to each style
+            self.style.layout(name, base_style_layout)
+            # Configure the specific colors and thickness for each style
+            self.style.configure(
+                name,
+                troughcolor='lightgray',
+                background=color,
+                thickness=bar_thickness
+            )
 
     def _setup_labels(self):
         ttk.Label(
@@ -550,12 +561,20 @@ class FencingGui:
                 elif item['type'] == 'health':
                     left_hp = item['left']
                     right_hp = item['right']
+                    max_hp = self.scoring_manager.settings.get('max_hp', MAX_HP) # Get current max_hp
 
+                    # Determine the style based on current HP
+                    left_style = self._get_hp_style(left_hp, max_hp)
+                    right_style = self._get_hp_style(right_hp, max_hp)
+
+                    # Update bar values and styles
+                    self.left_hp_bar.config(style=left_style)
+                    self.right_hp_bar.config(style=right_style)
                     self.left_hp_bar['value'] = left_hp
                     self.right_hp_bar['value'] = right_hp
 
                     # Play sound and display winner when a player's HP reaches 0
-                    if left_hp == 0 and not self.left_hp_zero:
+                    if left_hp <= 0 and not self.left_hp_zero: # Check <= 0 for safety
                         self.left_hp_zero = True
                         try:
                             playsound('sounds/defeat.mp3', block=False)
@@ -569,7 +588,7 @@ class FencingGui:
                         except Exception as e:
                             print(f"Sound error: {e}")
 
-                    if right_hp == 0 and not self.right_hp_zero:
+                    if right_hp <= 0 and not self.right_hp_zero: # Check <= 0 for safety
                         self.right_hp_zero = True
                         try:
                             playsound('sounds/defeat.mp3', block=False)
@@ -589,8 +608,7 @@ class FencingGui:
                     if right_hp > 0:
                         self.right_hp_zero = False
 
-                    # Styles are now static (Green for left, Red for right)
-                    # No need to update style based on health anymore
+                    # Styles are now dynamically updated based on health percentage above
                 self.root.update_idletasks()  # Update GUI immediately
         except queue.Empty:
             pass  # No messages currently
