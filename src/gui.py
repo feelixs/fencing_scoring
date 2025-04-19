@@ -341,7 +341,7 @@ class FencingGui:
             self.scoring_manager.update_settings(new_settings)
             self.scoring_manager.reset()
 
-            # Reset sound flags when game is reset
+            # Reset all game state flags when game is reset
             self.left_hp_zero = False
             self.right_hp_zero = False
             
@@ -614,7 +614,12 @@ class FencingGui:
 
     def update_gui(self) -> bool:
         """ Checks the queue for messages and updates the GUI elements. """
-        player_won = self.stop_event.is_set()  # if a player already won, the stop event would be set
+        # Get current health to determine if we're still in a winning state
+        left_hp, right_hp = self.scoring_manager.get_hp()
+        is_winning_state = left_hp <= 0 or right_hp <= 0
+        
+        # If players have health, it's not a winning state regardless of stop_event
+        player_won = self.stop_event.is_set() and is_winning_state
         try:
             while True:  # Process all messages currently in queue
                 item = self.output_queue.get_nowait()
@@ -705,10 +710,15 @@ class FencingGui:
         except queue.Empty:
             pass  # No messages currently
 
-        if player_won and not self.stop_event.is_set():
+        # Only update stop_event if we're in a winning state and it's not already set
+        if is_winning_state and not self.stop_event.is_set():
             self.left_shaking = False  # Stop left bar shaking
             self.right_shaking = False  # Stop right bar shaking
             self.stop_event.set()  # Stop the device thread if a player has won
+        # If we're not in a winning state but stop_event is set, something might have gone wrong
+        elif not is_winning_state and self.stop_event.is_set():
+            print("Game state mismatch detected: not a winning state but stop_event is set")
+            # We don't clear stop_event here as that should happen in apply_settings_and_reset
 
         # Schedule the next check
         self.root.after(100, self.update_gui)  # Check every 100ms
