@@ -344,6 +344,10 @@ class FencingGui:
             # Reset sound flags when game is reset
             self.left_hp_zero = False
             self.right_hp_zero = False
+            
+            # Reset sound interval flags
+            self._left_side_sounds_played = {'75': False, '50': False, '25': False}
+            self._right_side_sounds_played = {'75': False, '50': False, '25': False}
 
             # Hide winner display
             self.winner_frame.place_forget()
