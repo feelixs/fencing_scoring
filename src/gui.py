@@ -182,7 +182,8 @@ class FencingGui:
         thresholds = [
             '75',
             #'50',
-            '25']
+            '25'
+        ]
         sounds_played = self._left_side_sounds_played if side == "left" else self._right_side_sounds_played
         for x in thresholds:
             if percentage < int(x) and not sounds_played[x]:
