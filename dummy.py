@@ -1,25 +1,27 @@
+# simulate the VSM device thru keyboard presses
 import time
 from threading import Event, Lock
 from pynput import keyboard
 
 
-# simulate the VSM device thru keyboard presses
-started = False
+last_listener = None
 
 
 class DummyVSMDevice:
-    def __init__(self, started):
+    def __init__(self, listener):
         self.lock = False
         self.stop_event = Event()
         self.l_pressed = False
         self.r_pressed = False
         self.state_lock = Lock()
-        if not started:
+        if listener is None:
             self.listener = keyboard.Listener(
                 on_press=self._on_press,
                 on_release=self._on_release
             )
             self.listener.start()
+        else:
+            self.listener = listener
 
     def _on_press(self, key):
         try:
@@ -74,19 +76,18 @@ class DummyVSMDevice:
 
 
 def find_dummy_device():
-    global started
+    global last_listener
     """Replacement for find_vsm_device that returns our dummy device"""
     print("Using DUMMY VSM device - press 'l' or 'r' keys to simulate hits")
-    d = DummyVSMDevice(started)
-    started = True
+    d = DummyVSMDevice(last_listener)
+    last_listener = d.listener
     return d
 
 
 if __name__ == "__main__":
     # Simple test of the dummy device
     print("Testing dummy device - press 'l' or 'r' keys, Ctrl+C to exit")
-    device = DummyVSMDevice(started)
-    started = True
+    device = DummyVSMDevice(None)
     while True:
         print(device.read(42))
         time.sleep(0.1)
