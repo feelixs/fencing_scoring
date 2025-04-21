@@ -4,19 +4,22 @@ from pynput import keyboard
 
 
 # simulate the VSM device thru keyboard presses
+started = False
+
 
 class DummyVSMDevice:
-    def __init__(self):
+    def __init__(self, started):
         self.lock = False
         self.stop_event = Event()
         self.l_pressed = False
         self.r_pressed = False
         self.state_lock = Lock()
-        self.listener = keyboard.Listener(
-            on_press=self._on_press,
-            on_release=self._on_release
-        )
-        self.listener.start()
+        if not started:
+            self.listener = keyboard.Listener(
+                on_press=self._on_press,
+                on_release=self._on_release
+            )
+            self.listener.start()
 
     def _on_press(self, key):
         try:
@@ -67,42 +70,23 @@ class DummyVSMDevice:
         return data
 
     def close(self):
-        if self.lock:
-            return
-        self.lock = True
-        print("Stopping pynput listener...")
-        self.stop_event.set()  # Signal any internal loops using this event (though read() doesn't use it)
-        if self.listener:
-            self.listener.stop()
-            # Wait for the listener thread to actually terminate
-            # This is crucial to prevent conflicts when restarting
-            try:
-                # Check if the listener thread is alive before joining
-                # pynput listener might already be stopped/joined internally sometimes
-                if self.listener.is_alive():
-                    time.sleep(0.3)  # Give it a moment to stop
-                    self.listener.join()
-                    if self.listener.is_alive():
-                        print("Warning: pynput listener thread did not join cleanly.")
-                print("pynput listener stopped.")
-            except Exception as e:
-                print(f"Error joining pynput listener thread: {e}")
-            self.listener = None  # Clear the reference
+        return
 
 
 def find_dummy_device():
+    global started
     """Replacement for find_vsm_device that returns our dummy device"""
     print("Using DUMMY VSM device - press 'l' or 'r' keys to simulate hits")
-    return DummyVSMDevice()
+    d = DummyVSMDevice(started)
+    started = True
+    return d
 
 
 if __name__ == "__main__":
     # Simple test of the dummy device
     print("Testing dummy device - press 'l' or 'r' keys, Ctrl+C to exit")
-    device = DummyVSMDevice()
-    try:
-        while True:
-            print(device.read(42))
-            time.sleep(0.1)
-    except KeyboardInterrupt:
-        device.close()
+    device = DummyVSMDevice(started)
+    started = True
+    while True:
+        print(device.read(42))
+        time.sleep(0.1)
