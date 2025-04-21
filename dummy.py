@@ -4,24 +4,21 @@ from threading import Event, Lock
 from pynput import keyboard
 
 
-last_listener = None
+the_device = None
 
 
 class DummyVSMDevice:
-    def __init__(self, listener):
+    def __init__(self):
         self.lock = False
         self.stop_event = Event()
         self.l_pressed = False
         self.r_pressed = False
         self.state_lock = Lock()
-        if listener is None:
-            self.listener = keyboard.Listener(
-                on_press=self._on_press,
-                on_release=self._on_release
-            )
-            self.listener.start()
-        else:
-            self.listener = listener
+        self.listener = keyboard.Listener(
+            on_press=self._on_press,
+            on_release=self._on_release
+        )
+        self.listener.start()
 
     def _on_press(self, key):
         try:
@@ -76,18 +73,18 @@ class DummyVSMDevice:
 
 
 def find_dummy_device():
-    global last_listener
+    global the_device
     """Replacement for find_vsm_device that returns our dummy device"""
     print("Using DUMMY VSM device - press 'l' or 'r' keys to simulate hits")
-    d = DummyVSMDevice(last_listener)
-    last_listener = d.listener
-    return d
+    if the_device is None:
+        the_device = DummyVSMDevice()
+    return the_device
 
 
 if __name__ == "__main__":
     # Simple test of the dummy device
     print("Testing dummy device - press 'l' or 'r' keys, Ctrl+C to exit")
-    device = DummyVSMDevice(None)
+    device = DummyVSMDevice()
     while True:
         print(device.read(42))
         time.sleep(0.1)
