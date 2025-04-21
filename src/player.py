@@ -1,6 +1,5 @@
 from datetime import timedelta, datetime
 from typing import Optional, Tuple
-from src.settings import secBeforeContDmg
 
 
 class ScoringManager:
