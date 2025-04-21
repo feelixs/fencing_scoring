@@ -183,7 +183,7 @@ class FencingGui:
         sounds_played = self._left_side_sounds_played if side == "left" else self._right_side_sounds_played
         for x in thresholds:
             if percentage < int(x) and not sounds_played[x]:
-                playsound(f"sounds/defeat_high.mp3" if side == "left" else f"sounds/defeat_low.mp3", block=False)
+                playsound(f"sounds/left_damage.mp3" if side == "left" else f"sounds/right_damage.mp3", block=False)
                 sounds_played[x] = True
                 break  # Play only one sound per drop
 
@@ -676,7 +676,7 @@ class FencingGui:
                     if left_hp <= 0 and not self.left_hp_zero: # Check <= 0 for safety
                         self.left_hp_zero = True
                         try:
-                            playsound('sounds/defeat.mp3', block=False)
+                            playsound('sounds/gameover.mp3', block=False)
                             self.output_queue.put({'type': 'status', 'message': "*** PLAYER 2: RIGHT WINS ***"})
                             # Show winner message with RIGHT player color (red)
                             self.winner_label.config(text="PLAYER 2: RIGHT WINS", fg="white", bg="red")
@@ -690,7 +690,7 @@ class FencingGui:
                     if right_hp <= 0 and not self.right_hp_zero: # Check <= 0 for safety
                         self.right_hp_zero = True
                         try:
-                            playsound('sounds/defeat.mp3', block=False)
+                            playsound('sounds/gameover.mp3', block=False)
                             self.output_queue.put({'type': 'status', 'message': "*** PLAYER 1: LEFT WINS ***"})
                             # Show winner message with LEFT player color (green)
                             self.winner_label.config(text="PLAYER 1: LEFT WINS", fg="white", bg="green")
