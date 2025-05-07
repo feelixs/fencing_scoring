@@ -459,7 +459,7 @@ class FencingGui:
                     hp_changed_one_time = False
 
                     # Read data from the device (with a short timeout to allow checking stop_event)
-                    data = device.read(42, timeout_ms=100)
+                    data = device.read(42, timeout_ms=50)
 
                     if self.stop_event.is_set():
                         # double check after potential blocking read
