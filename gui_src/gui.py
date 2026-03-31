@@ -16,6 +16,21 @@ from src.settings import (
 )
 
 
+#  - when player1 hits player2, triggers a lockout (debounce) and starts a timer
+#           -> within the timer if player2 attacks back
+#                -> (either erase the damage inflicted by player1, or if they don't hit them, they the damage, with an option to multiply it like a spare in bowling)
+#
+# - De-incentivize TAGBACKS -> GLOBAL debounce time which makes hits impossible during it
+# - when player1 hits, they can't hit again that round unless there's been blade contact again (they defended themselves)
+#
+#
+# - ititial state when round starts
+# - when player1 hits the second phase starts where the timer starts (2 seconds default, editable variable)
+# - when the timer runs out or player2 hits back, the round is over and play stops until they manually restart it
+#
+# send it back to Mihail after cleaning it up
+
+
 class FencingGui:
     def __init__(self, find_device, detect_hit_state):
         # find_device should return the VSM device, or None if it's not found
